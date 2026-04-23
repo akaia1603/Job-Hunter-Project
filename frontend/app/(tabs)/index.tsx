@@ -51,48 +51,44 @@ export default function HomeTab() {
     { title: 'Blog', img: require('../../assets/images/Blog.jpg') },
   ];
 
-  const bannerImage = require('../../assets/images/Banner trên cùng.jpg');
-
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[COLORS.primary]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[COLORS.white]} />}
         stickyHeaderIndices={[1]}
       >
-        {/* Top Banner with Image */}
-        <View style={styles.bannerSection}>
-          <Banner
-            backgroundImage={bannerImage}
-            style={styles.topBanner}
-          />
-        </View>
-
-        {/* Header with greeting */}
-        <View style={styles.topHeader}>
-          <View>
-            <Text style={styles.greeting}>Xin chào,</Text>
-            <Text style={styles.userName}>Bạn đang tìm việc gì?</Text>
+        {/* Green Header Banner with Avatar and Search */}
+        <View style={styles.headerBanner}>
+          <View style={styles.headerTop}>
+            {/* Avatar */}
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>TJ</Text>
+              </View>
+            </View>
+            
+            {/* Status Icons */}
+            <View style={styles.statusIcons}>
+              <Ionicons name="cellular" size={16} color={COLORS.white} style={{ marginRight: SPACING.xs }} />
+              <Ionicons name="wifi" size={16} color={COLORS.white} style={{ marginRight: SPACING.xs }} />
+              <Ionicons name="battery-full" size={16} color={COLORS.white} />
+            </View>
           </View>
-          <TouchableOpacity style={styles.notificationBtn}>
-            <Ionicons name="notifications-outline" size={24} color={COLORS.text.primary} />
-          </TouchableOpacity>
-        </View>
 
-        {/* Search Bar - Sticky Header index 1 */}
-        <View style={styles.searchWrapper}>
-          <View style={styles.searchBox}>
-            <Ionicons name="search-outline" size={20} color={COLORS.text.light} style={{ marginRight: SPACING.md }} />
+          {/* Search Box */}
+          <View style={styles.searchContainer}>
+            <Ionicons name="search-outline" size={18} color={COLORS.primary} style={{ marginRight: SPACING.md }} />
             <TextInput
-              style={styles.searchInput}
+              style={styles.searchInputField}
               placeholder="thực tập sinh"
               placeholderTextColor={COLORS.text.light}
             />
           </View>
         </View>
 
-        {/* Quick Category Navigation */}
+        {/* Quick Category Navigation - Sticky Header */}
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false} 
@@ -198,6 +194,53 @@ const styles = StyleSheet.create({
     flex: 1, 
     backgroundColor: COLORS.background.secondary 
   },
+  headerBanner: {
+    backgroundColor: COLORS.primary,
+    paddingTop: Platform.OS === 'ios' ? 10 : 8,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.lg,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  avatarContainer: {
+    flex: 1,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
+  avatarText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  statusIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    height: 44,
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.lg,
+  },
+  searchInputField: { 
+    flex: 1, 
+    ...TYPOGRAPHY.body2,
+    color: COLORS.text.primary,
+  },
   bannerSection: {
     paddingHorizontal: SPACING.xxxl,
     paddingTop: Platform.OS === 'ios' ? 20 : 10,
@@ -254,6 +297,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xxxl, 
     paddingVertical: SPACING.xl,
     gap: SPACING.xl,
+    backgroundColor: COLORS.white,
   },
   navItem: { 
     alignItems: 'center', 
