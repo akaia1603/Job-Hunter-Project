@@ -51,15 +51,23 @@ export default function HomeTab() {
     { title: 'Blog', img: require('../../assets/images/Blog.jpg') },
   ];
 
+  const bannerImage = require('../../assets/images/Banner trên cùng.jpg');
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[COLORS.white]} />}
-        stickyHeaderIndices={[1]}
       >
-        {/* Green Header Banner with Avatar and Search */}
+        {/* Banner Image */}
+        <Image 
+          source={bannerImage}
+          style={styles.bannerImage}
+          resizeMode="cover"
+        />
+
+        {/* Green Header with Avatar and Search */}
         <View style={styles.headerBanner}>
           <View style={styles.headerTop}>
             {/* Avatar */}
@@ -88,7 +96,7 @@ export default function HomeTab() {
           </View>
         </View>
 
-        {/* Quick Category Navigation - Sticky Header */}
+        {/* Quick Category Navigation */}
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false} 
@@ -104,7 +112,7 @@ export default function HomeTab() {
           ))}
         </ScrollView>
 
-        {/* Suitable Jobs Section Header */}
+        {/* Suitable Jobs Section */}
         <View style={styles.sectionWrap}>
           <View style={styles.sectionHeader}>
             <View style={styles.headerLeft}>
@@ -194,6 +202,10 @@ const styles = StyleSheet.create({
     flex: 1, 
     backgroundColor: COLORS.background.secondary 
   },
+  bannerImage: {
+    width: '100%',
+    height: 120,
+  },
   headerBanner: {
     backgroundColor: COLORS.primary,
     paddingTop: Platform.OS === 'ios' ? 10 : 8,
@@ -239,58 +251,6 @@ const styles = StyleSheet.create({
   searchInputField: { 
     flex: 1, 
     ...TYPOGRAPHY.body2,
-    color: COLORS.text.primary,
-  },
-  bannerSection: {
-    paddingHorizontal: SPACING.xxxl,
-    paddingTop: Platform.OS === 'ios' ? 20 : 10,
-    paddingBottom: SPACING.lg,
-    backgroundColor: COLORS.white,
-  },
-  topBanner: {
-    height: 150,
-  },
-  topHeader: {
-    paddingHorizontal: SPACING.xxxl,
-    paddingVertical: SPACING.lg,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
-  },
-  greeting: {
-    ...TYPOGRAPHY.body1,
-    color: COLORS.text.secondary,
-  },
-  userName: {
-    ...TYPOGRAPHY.h3,
-    color: COLORS.text.primary,
-  },
-  notificationBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.background.secondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  searchWrapper: { 
-    paddingHorizontal: SPACING.xxxl,
-    paddingBottom: SPACING.lg,
-    backgroundColor: COLORS.white,
-    ...SHADOW.sm,
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.background.secondary,
-    height: 52,
-    borderRadius: BORDER_RADIUS.md,
-    paddingHorizontal: SPACING.xl,
-  },
-  searchInput: { 
-    flex: 1, 
-    ...TYPOGRAPHY.body1,
     color: COLORS.text.primary,
   },
   navIconsRow: { 
