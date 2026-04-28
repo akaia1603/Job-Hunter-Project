@@ -16,8 +16,9 @@ public class CorsConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         // cho phép các URL nào có thể kết nối tới backend
-        configuration.setAllowedOrigins(
-                Arrays.asList("http://localhost:3000", "http://localhost:4173", "http://localhost:5173"));
+        // Expo web/dev server thường chạy trên localhost:19000/19001/19006
+        configuration.setAllowedOriginPatterns(
+                Arrays.asList("http://localhost:*", "http://127.0.0.1:*"));
 
         // các method nào đc kết nối
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));

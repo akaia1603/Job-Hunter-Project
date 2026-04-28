@@ -32,11 +32,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Restore auth state on app startup
   useEffect(() => {
     const restoreAuth = async () => {
+      console.log('DEBUG AUTH CONTEXT: restoreAuth started.');
       try {
-        const token = await storage.get('authToken');
+        setState(prev => ({ ...prev, isLoading: true }));
+        const token = await storage.getSecure('authToken');
         const user = await storage.get('user');
 
+        console.log('DEBUG AUTH CONTEXT restoreAuth: Retrieved storage data:', {
+          tokenExists: !!token,
+          userExists: !!user,
+          tokenPreview: token ? token.substring(0, 20) + '...' : 'null',
+          userPreview: user ? JSON.stringify(user).substring(0, 100) + '...' : 'null',
+        });
+
         if (token && user) {
+          console.log('DEBUG AUTH CONTEXT: Auth restored successfully.');
           setState(prev => ({
             ...prev,
             token: token as string,
@@ -45,10 +55,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             isLoading: false,
           }));
         } else {
+          console.log('DEBUG AUTH CONTEXT: Auth restoration failed (token or user missing).');
           setState(prev => ({ ...prev, isLoading: false }));
         }
       } catch (error) {
-        console.error('Error restoring auth:', error);
+        console.error('DEBUG AUTH CONTEXT Error restoring auth:', error);
         setState(prev => ({ ...prev, isLoading: false }));
       }
     };
@@ -67,6 +78,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       const token = response.access_token;
+      const refreshToken = response.refresh_token;
       const loginUser = response.user;
 
       // Build full user object
@@ -86,7 +98,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         createdAt: new Date().toISOString(),
       };
 
-      await storage.set('authToken', token);
+      await storage.setSecure('authToken', token);
+      if (refreshToken) {
+        await storage.setSecure('refreshToken', refreshToken);
+      }
       await storage.set('user', fullUser);
 
       setState(prev => ({
@@ -97,6 +112,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         error: null,
         isLoading: false,
       }));
+      console.log('DEBUG AUTH CONTEXT: Login successful.');
     } catch (error: any) {
       const errorMessage = error?.message || 'Đăng nhập thất bại';
       setState(prev => ({
@@ -104,6 +120,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         error: errorMessage,
         isLoading: false,
       }));
+      console.error('DEBUG AUTH CONTEXT Login error:', error);
       throw error;
     }
   };
@@ -116,6 +133,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Auto login after signup
       await login(email, password);
+      console.log('DEBUG AUTH CONTEXT: Signup successful and auto-logged in.');
     } catch (error: any) {
       const errorMessage = error?.message || 'Đăng ký thất bại';
       setState(prev => ({
@@ -123,6 +141,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         error: errorMessage,
         isLoading: false,
       }));
+      console.error('DEBUG AUTH CONTEXT Signup error:', error);
       throw error;
     }
   };
@@ -132,9 +151,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setState(prev => ({ ...prev, isLoading: true }));
       await authService.logout();
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('DEBUG AUTH CONTEXT Logout error:', error);
     } finally {
-      await storage.remove('authToken');
+      await storage.removeSecure('authToken');
+      await storage.removeSecure('refreshToken');
       await storage.remove('user');
 
       setState({
@@ -144,6 +164,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         error: null,
         isLoading: false,
       });
+      console.log('DEBUG AUTH CONTEXT: Logout successful.');
     }
   };
 

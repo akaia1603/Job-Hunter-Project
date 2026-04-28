@@ -1,6 +1,8 @@
-// AI Recommendation Service
+// AI Recommendation Service — Real API with local fallback
 import { Job } from '@/types/job.types';
+import { API_CONFIG, ENDPOINTS } from '@constants/endpoints';
 import { MOCK_JOBS, MOCK_CURRENT_USER } from './mockData';
+import api from './api';
 
 interface MatchResult {
   job: Job;
@@ -12,7 +14,7 @@ interface MatchResult {
 
 class RecommendationService {
   /**
-   * Calculate match score between user skills and job requirements
+   * Calculate match score between user skills and job requirements (local fallback)
    */
   private calculateMatch(userSkills: string[], jobSkills: string[]): {
     score: number;
@@ -42,6 +44,27 @@ class RecommendationService {
    * Get AI-recommended jobs sorted by match score
    */
   async getRecommendedJobs(): Promise<MatchResult[]> {
+    if (!API_CONFIG.USE_MOCK) {
+      try {
+        // Real API: GET /api/v1/jobs/recommend
+        // FormatRestResponse wraps: { statusCode, data: [{ matchScore, job, matchedSkills, ... }], message }
+        const response = await api.get(ENDPOINTS.RECOMMENDATIONS.LIST);
+        const recommendations = (response.data as any).data || [];
+        
+        return recommendations.map((rec: any) => ({
+          job: { ...rec.job, matchScore: rec.matchScore },
+          matchScore: rec.matchScore || 0,
+          matchedSkills: rec.matchedSkills || [],
+          missingSkills: rec.missingSkills || [],
+          reasons: rec.reasons || [],
+        }));
+      } catch (error) {
+        console.warn('Recommendation API failed, falling back to local:', error);
+        // Fall through to local calculation
+      }
+    }
+
+    // Local fallback using mock data
     const userSkills = MOCK_CURRENT_USER.skills || [];
 
     const results: MatchResult[] = MOCK_JOBS
@@ -76,6 +99,18 @@ class RecommendationService {
    * Get match score for a specific job
    */
   async getMatchScore(jobId: number): Promise<MatchResult | null> {
+    if (!API_CONFIG.USE_MOCK) {
+      try {
+        // Try to get from recommendations list
+        const recommendations = await this.getRecommendedJobs();
+        const match = recommendations.find(r => r.job.id === jobId);
+        if (match) return match;
+      } catch (error) {
+        // Fall through to local
+      }
+    }
+
+    // Local fallback
     const job = MOCK_JOBS.find(j => j.id === jobId);
     if (!job) return null;
 

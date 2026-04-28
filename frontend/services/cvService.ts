@@ -1,8 +1,8 @@
 // CV Service — with mock support for demo
 import { API_CONFIG, ENDPOINTS } from '@constants/endpoints';
 import {
-    ApiResponse,
     CV,
+    ApiResponse,
     CVAnalytics,
     CVTemplate,
     CreateCVRequest,
@@ -25,14 +25,11 @@ let MOCK_CVS: CV[] = [];
 
 class CVService {
   async getCVs(): Promise<PaginationResponse<CV>> {
-    if (API_CONFIG.USE_MOCK) {
-      return {
-        meta: { page: 1, pageSize: 20, pages: 1, total: MOCK_CVS.length },
-        result: MOCK_CVS,
-      };
-    }
-    const response = await api.get<ApiResponse<PaginationResponse<CV>>>(ENDPOINTS.CV.LIST);
-    return response.data.data as PaginationResponse<CV>;
+    // Always use mock for local CV data structure since backend only stores the final PDF
+    return {
+      meta: { page: 1, pageSize: 20, pages: 1, total: MOCK_CVS.length },
+      result: MOCK_CVS,
+    };
   }
 
   async getCVDetail(cvId: string): Promise<CV> {
@@ -87,11 +84,8 @@ class CVService {
   }
 
   async getTemplates(): Promise<CVTemplate[]> {
-    if (API_CONFIG.USE_MOCK) {
-      return MOCK_TEMPLATES;
-    }
-    const response = await api.get<ApiResponse<CVTemplate[]>>(ENDPOINTS.CV.TEMPLATES);
-    return response.data.data as CVTemplate[];
+    // Always return mock templates (static predefined templates)
+    return MOCK_TEMPLATES;
   }
 
   async exportCV(data: ExportCVRequest): Promise<any> {
@@ -116,6 +110,26 @@ class CVService {
     }
     const response = await api.get<ApiResponse<CVAnalytics>>(ENDPOINTS.CV.ANALYTICS(cvId));
     return response.data.data as CVAnalytics;
+  }
+
+  async uploadCV(file: any): Promise<string> {
+    if (API_CONFIG.USE_MOCK) {
+      return 'mock-cv-url.pdf';
+    }
+    const formData = new FormData();
+    formData.append('file', file as any);
+    // folder must be 'resume' for NORMAL_USER due to FileController rules
+    formData.append('folder', 'resume');
+    
+    // API: POST /api/v1/files
+    const response = await api.post('/files', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    // response.data from FormatRestResponse is { statusCode, data: { fileName, uploadedAt }, message }
+    const responseData = (response.data as any).data;
+    return responseData?.fileName;
   }
 }
 

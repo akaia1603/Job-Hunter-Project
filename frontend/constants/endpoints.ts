@@ -1,9 +1,15 @@
+import { Platform } from 'react-native';
+
 // API Endpoints configuration — mapped to Spring Boot backend
+const defaultHost = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 export const API_CONFIG = {
-  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080/api',
+  BASE_URL:
+    process.env.EXPO_PUBLIC_API_URL ||
+    `http://${defaultHost}:8080/api`,
   VERSION: 'v1',
   TIMEOUT: Number(process.env.EXPO_PUBLIC_API_TIMEOUT) || 30000,
-  USE_MOCK: process.env.EXPO_PUBLIC_USE_MOCK !== 'false', // default true
+  // USE_MOCK: process.env.EXPO_PUBLIC_USE_MOCK == 'false', // default true
+  USE_MOCK: false,
 };
 
 export const ENDPOINTS = {
@@ -13,6 +19,7 @@ export const ENDPOINTS = {
     REGISTER: '/auth/register',        // POST { email, password, name, ... }
     LOGOUT: '/auth/logout',            // POST
     REFRESH: '/auth/refresh',          // GET (reads cookie)
+    REFRESH_TOKEN: '/auth/refresh',    // POST { refreshToken }
     ACCOUNT: '/auth/account',          // GET → { user }
   },
 
@@ -74,13 +81,39 @@ export const ENDPOINTS = {
   // Profile (alias for current user)
   PROFILE: {
     GET: '/auth/account',
-    CHANGE_PASSWORD: '/profile/change-password',
+    UPDATE: '/users',
+    UPLOAD_AVATAR: '/users/avatar',
+    CHANGE_PASSWORD: '/users/change-password',
   },
 
-  // Notifications (mock-only for now)
+  // Notifications (Spring: NotificationController)
   NOTIFICATIONS: {
     LIST: '/notifications',
-    MARK_READ: (id: string) => `/notifications/${id}/read`,
+    MARK_READ: (id: number) => `/notifications/${id}/read`,
+    MARK_ALL_READ: '/notifications/read-all',
+    COUNT_UNREAD: '/notifications/unread',
+  },
+
+  // Reviews (Spring: ReviewController)
+  REVIEWS: {
+    CREATE: '/reviews',
+    LIST: '/reviews',
+  },
+
+  // Statistics (Spring: StatisticsController)
+  STATISTICS: {
+    ADMIN: '/statistics/admin',
+  },
+
+  // Saved Jobs (Spring: SavedJobController + JobController)
+  SAVED_JOBS: {
+    LIST: '/jobs/saved',
+    TOGGLE: (id: number) => `/jobs/${id}/save`,
+  },
+
+  // AI Recommendations (Spring: JobController)
+  RECOMMENDATIONS: {
+    LIST: '/jobs/recommend',
   },
 
   // CV endpoints (mock-only for now)

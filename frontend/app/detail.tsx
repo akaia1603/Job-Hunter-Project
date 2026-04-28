@@ -1,16 +1,30 @@
-// Job Detail Screen - Refined minimalist design
-import { Button, LoadingSpinner, MatchScore, PremiumBadge, SkillTag } from '@components/index';
-import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOW } from '@constants/theme';
-import { useAuth } from '@hooks/index';
+// Job Detail Screen — Refined aesthetic
+import { Button, LoadingSpinner, MatchScore, PremiumBadge } from '@components/index';
+import { BORDER_RADIUS, COLORS, SHADOW, SPACING, TYPOGRAPHY } from '@constants/theme';
+import { useAuthStore } from '@store/authStore';
 import { jobService } from '@services/jobService';
 import { recommendationService } from '@services/recommendationService';
 import { Job } from '@/types/job.types';
+import * as DocumentPicker from 'expo-document-picker';
+import { cvService } from '@services/cvService';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, StatusBar, Platform } from 'react-native';
+import {
+  Alert,
+  Image,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-const formatSalary = (salary: number) => {
+const formatSalary = (salary: number): string => {
+  if (salary === 0) return 'Thoả thuận';
   if (salary >= 1000000) return (salary / 1000000).toFixed(0) + ' triệu';
   return new Intl.NumberFormat('vi-VN').format(salary);
 };
@@ -18,20 +32,23 @@ const formatSalary = (salary: number) => {
 export default function JobDetailScreen() {
   const router = useRouter();
   const { jobId } = useLocalSearchParams<{ jobId: string }>();
-  const { state } = useAuth();
+  const { user, isAuthenticated } = useAuthStore();
+  
   const [job, setJob] = useState<Job | null>(null);
   const [matchInfo, setMatchInfo] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [isApplying, setIsApplying] = useState(false);
 
-  useEffect(() => { if (jobId) loadData(); }, [jobId]);
+  useEffect(() => {
+    if (jobId) loadData();
+  }, [jobId]);
 
   const loadData = async () => {
     try {
       const id = parseInt(jobId as string, 10);
       const [jobData, matchData] = await Promise.all([
         jobService.getJobDetail(id),
-        recommendationService.getMatchScore(id),
+        recommendationService.getMatchScore(id).catch(() => null),
       ]);
       setJob(jobData);
       setMatchInfo(matchData);
@@ -40,20 +57,59 @@ export default function JobDetailScreen() {
       Alert.alert('Lỗi', 'Không thể tải chi tiết công việc');
       router.back();
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const handleApply = async () => {
     if (!job) return;
-    if (!state.isAuthenticated) { router.push('/'); return; }
-    setIsApplying(true);
+    if (!isAuthenticated) {
+      Alert.alert('Yêu cầu đăng nhập', 'Bạn cần đăng nhập để ứng tuyển công việc này.', [
+        { text: 'Hủy', style: 'cancel' },
+        { text: 'Đăng nhập', onPress: () => router.push('/login') }
+      ]);
+      return;
+    }
+
     try {
-      await jobService.applyJob({ jobId: job.id, email: state.user?.email || 'demo@topjob.vn', url: '/uploads/cv_demo.pdf' });
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return; // User canceled picking
+      }
+
+      const file = result.assets[0];
+      if (file.size && file.size > 5 * 1024 * 1024) {
+        Alert.alert('Lỗi', 'File không được vượt quá 5MB');
+        return;
+      }
+
+      setIsApplying(true);
+
+      // 1. Upload CV to MinIO
+      const fileToUpload = {
+        uri: file.uri,
+        name: file.name,
+        type: file.mimeType || 'application/pdf',
+      };
+      const fileNameOnServer = await cvService.uploadCV(fileToUpload);
+
+      // 2. Submit application with the returned URL
+      await jobService.applyJob({
+        jobId: job.id,
+        email: user?.email || 'user@example.com',
+        url: fileNameOnServer,
+        userId: user?.id,
+      });
+
       Alert.alert('Thành công', 'Đã nộp đơn ứng tuyển thành công!');
       loadData();
     } catch (error: any) {
-      Alert.alert('Lỗi', error?.message || 'Không thể ứng tuyển');
+      console.error('Apply Job Error:', error);
+      Alert.alert('Lỗi', error?.message || 'Không thể ứng tuyển lúc này. Vui lòng thử lại sau.');
     } finally {
       setIsApplying(false);
     }
@@ -62,383 +118,201 @@ export default function JobDetailScreen() {
   const handleSaveJob = async () => {
     if (!job) return;
     try {
-      if (job.isSaved) { await jobService.unsaveJob(job.id); } else { await jobService.saveJob(job.id); }
+      if (job.isSaved) {
+        await jobService.unsaveJob(job.id);
+      } else {
+        await jobService.saveJob(job.id);
+      }
       setJob(prev => prev ? { ...prev, isSaved: !prev.isSaved } : null);
-    } catch (error) { console.error('Error saving job:', error); }
+    } catch (error) {
+      console.error('Error saving job:', error);
+    }
   };
 
-  if (loading || !job) return <LoadingSpinner fullScreen message="Đang tải..." />;
+  if (isLoading || !job) return <LoadingSpinner fullScreen message="Đang tải chi tiết..." />;
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
       
-      {/* Custom Header Nav */}
-      <View style={styles.navHeader}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+      <SafeAreaView edges={['top']} style={styles.navHeader}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.navBtn}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.shareBtn}>
-          <Ionicons name="share-outline" size={24} color={COLORS.text.primary} />
+        <Text style={styles.navTitle} numberOfLines={1}>Chi tiết công việc</Text>
+        <TouchableOpacity style={styles.navBtn}>
+          <Ionicons name="share-social-outline" size={24} color={COLORS.text.primary} />
         </TouchableOpacity>
-      </View>
+      </SafeAreaView>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Main Header */}
-        <View style={styles.header}>
-          <View style={styles.logoRow}>
-            <View style={styles.logoContainer}>
-              <Text style={styles.logoText}>{job.company.name?.charAt(0) || 'C'}</Text>
-            </View>
-            <View style={styles.companyMeta}>
-              <Text style={styles.companyName}>{job.company.name}</Text>
-              {job.company.isPremium && <PremiumBadge tier={job.company.premiumTier} size="small" />}
+        <View style={styles.headerCard}>
+          <Text style={styles.jobTitle}>{job.name}</Text>
+          <View style={styles.salaryRow}>
+            <Text style={styles.salary}>{formatSalary(job.salary)} VND</Text>
+            <View style={styles.tag}>
+              <Text style={styles.tagText}>{job.level}</Text>
             </View>
           </View>
           
-          <Text style={styles.title}>{job.name}</Text>
-          <View style={styles.salaryRow}>
-            <Text style={styles.salary}>{formatSalary(job.salary)} VND</Text>
-            <View style={styles.locationBadge}>
-              <Ionicons name="location-outline" size={14} color={COLORS.text.secondary} />
-              <Text style={styles.locationText}>{job.location.split(',')[0]}</Text>
-            </View>
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={16} color={COLORS.text.secondary} />
+            <Text style={styles.locationText}>{job.location}</Text>
           </View>
         </View>
 
-        {/* AI Analysis Card - Minimalist & Elegant */}
         {matchInfo && (
-          <View style={styles.aiSection}>
+          <View style={styles.aiCard}>
             <View style={styles.aiHeader}>
               <View>
                 <Text style={styles.aiTitle}>Phân tích mức độ phù hợp</Text>
                 <Text style={styles.aiSubtitle}>Dựa trên hồ sơ của bạn</Text>
               </View>
-              <MatchScore score={matchInfo.matchScore} size={44} />
+              <MatchScore score={matchInfo.matchScore} size={48} />
             </View>
-            <View style={styles.skillsRow}>
-              {matchInfo.matchedSkills.slice(0, 3).map((s: string, idx: number) => (
-                <View key={`matched-${idx}`} style={styles.skillMatchTag}>
-                  <Ionicons name="checkmark-circle" size={12} color={COLORS.primary} />
-                  <Text style={styles.skillMatchText}>{s}</Text>
-                </View>
-              ))}
-              {matchInfo.missingSkills.length > 0 && (
-                <View style={styles.skillMissingTag}>
-                  <Text style={styles.skillMissingText}>+{matchInfo.missingSkills.length} kỹ năng khác</Text>
-                </View>
-              )}
+            <View style={styles.aiStats}>
+              <View style={styles.aiStatItem}>
+                <Text style={styles.aiStatValue}>{matchInfo.matchedSkills.length}</Text>
+                <Text style={styles.aiStatLabel}>Kỹ năng khớp</Text>
+              </View>
+              <View style={styles.aiStatDivider} />
+              <View style={styles.aiStatItem}>
+                <Text style={styles.aiStatValue}>{matchInfo.missingSkills.length}</Text>
+                <Text style={styles.aiStatLabel}>Kỹ năng thiếu</Text>
+              </View>
             </View>
           </View>
         )}
 
-        {/* Quick Stats */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>CẤP BẬC</Text>
-            <Text style={styles.statValue}>{job.level}</Text>
+        <TouchableOpacity 
+          style={styles.companyCard}
+          onPress={() => router.push(`/company-detail?companyId=${job.company.id}`)}
+        >
+          <View style={styles.logoContainer}>
+            {job.company.logo ? (
+              <Image source={{ uri: job.company.logo }} style={styles.logo} />
+            ) : (
+              <View style={styles.logoPlaceholder}>
+                <Text style={styles.logoLetter}>{job.company.name.charAt(0)}</Text>
+              </View>
+            )}
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>SỐ LƯỢNG</Text>
-            <Text style={styles.statValue}>{job.quantity} người</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>HẾT HẠN</Text>
-            <Text style={styles.statValue}>30 ngày</Text>
-          </View>
-        </View>
-
-        {/* Sections */}
-        <View style={styles.contentSection}>
-          <Text style={styles.sectionHeading}>Mô tả công việc</Text>
-          <Text style={styles.descriptionText}>{job.description}</Text>
-        </View>
-
-        <View style={styles.contentSection}>
-          <Text style={styles.sectionHeading}>Về công ty</Text>
-          <TouchableOpacity 
-            style={styles.companyCard} 
-            onPress={() => router.push(`/company-detail?companyId=${job.company.id}`)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.companyCardTitle}>{job.company.name}</Text>
-            <Text style={styles.companyCardDesc} numberOfLines={3}>{job.company.description}</Text>
-            <View style={styles.companyCardFooter}>
-              <Text style={styles.readMoreText}>Xem chi tiết công ty</Text>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
+          <View style={styles.companyInfo}>
+            <View style={styles.companyHeader}>
+              <Text style={styles.companyName} numberOfLines={1}>{job.company.name}</Text>
+              {job.company.isPremium && <PremiumBadge tier={job.company.premiumTier} size="small" />}
             </View>
-          </TouchableOpacity>
+            <Text style={styles.viewCompany}>Xem trang công ty ›</Text>
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Mô tả công việc</Text>
+          <Text style={styles.sectionContent}>{job.description}</Text>
         </View>
 
-        <View style={{ height: 120 }} />
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Yêu cầu kỹ năng</Text>
+          <View style={styles.skillsRow}>
+            {job.skills.map(skill => (
+              <View key={skill.id} style={styles.skillTag}>
+                <Text style={styles.skillText}>{skill.name}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Footer Actions */}
-      <View style={styles.bottomBar}>
+      <View style={styles.footer}>
         <TouchableOpacity 
           style={[styles.saveBtn, job.isSaved && styles.saveBtnActive]} 
           onPress={handleSaveJob}
-          activeOpacity={0.7}
         >
           <Ionicons 
-            name={job.isSaved ? "bookmark" : "bookmark-outline"} 
-            size={24} 
+            name={job.isSaved ? "heart" : "heart-outline"} 
+            size={28} 
             color={job.isSaved ? COLORS.primary : COLORS.text.secondary} 
           />
         </TouchableOpacity>
-        <Button
-          title={job.isApplied ? 'ĐÃ ỨNG TUYỂN' : 'ỨNG TUYỂN NGAY'}
+        <TouchableOpacity 
+          style={[styles.applyBtn, job.isApplied && styles.appliedBtn]} 
           onPress={handleApply}
-          isLoading={isApplying}
-          disabled={job.isApplied}
-          style={styles.applyBtn}
-        />
+          disabled={job.isApplied || isApplying}
+        >
+          <Text style={styles.applyBtnText}>
+            {job.isApplied ? 'ĐÃ ỨNG TUYỂN' : 'ỨNG TUYỂN NGAY'}
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: COLORS.background.primary 
-  },
+  container: { flex: 1, backgroundColor: COLORS.white },
   navHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xl,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    height: Platform.OS === 'ios' ? 100 : 70,
-    backgroundColor: COLORS.background.primary,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  shareBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollContent: {
-    paddingHorizontal: SPACING.xxxl,
-  },
-  header: { 
-    paddingVertical: SPACING.xxl,
-  },
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.xl,
-  },
-  logoContainer: {
-    width: 52, 
-    height: 52, 
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.primaryLight,
-    justifyContent: 'center', 
-    alignItems: 'center',
-    marginRight: SPACING.lg,
-  },
-  logoText: { 
-    fontSize: 22, 
-    fontWeight: '800', 
-    color: COLORS.primary 
-  },
-  companyMeta: {
-    flex: 1,
-  },
-  companyName: { 
-    ...TYPOGRAPHY.body1, 
-    color: COLORS.text.secondary, 
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  title: { 
-    ...TYPOGRAPHY.h1, 
-    color: COLORS.text.primary, 
-    marginBottom: SPACING.lg,
-    lineHeight: 40,
-  },
-  salaryRow: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  salary: { 
-    ...TYPOGRAPHY.h3, 
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  locationBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.background.secondary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.full,
-    gap: 4,
-  },
-  locationText: {
-    ...TYPOGRAPHY.captionBold,
-    color: COLORS.text.secondary,
-  },
-  aiSection: {
-    marginVertical: SPACING.xl,
-    padding: SPACING.xl,
-    backgroundColor: '#F7FCF9',
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.primary + '10',
-  },
-  aiHeader: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: SPACING.xl 
-  },
-  aiTitle: {
-    ...TYPOGRAPHY.h4,
-    color: COLORS.text.primary,
-    marginBottom: 2,
-  },
-  aiSubtitle: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.text.secondary,
-  },
-  skillsRow: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-  },
-  skillMatchTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 10,
     backgroundColor: COLORS.white,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.primary + '20',
-    gap: 4,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#F0F0F0',
+    zIndex: 10,
   },
-  skillMatchText: {
-    ...TYPOGRAPHY.captionBold,
-    color: COLORS.primary,
-    fontSize: 11,
-  },
-  skillMissingTag: {
-    backgroundColor: COLORS.background.secondary,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.sm,
-  },
-  skillMissingText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.text.light,
-    fontSize: 11,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
-    paddingVertical: SPACING.xl,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: COLORS.divider,
-    marginBottom: SPACING.xxxl,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: COLORS.divider,
-  },
-  statLabel: {
-    ...TYPOGRAPHY.label,
-    color: COLORS.text.light,
-    fontSize: 10,
-    marginBottom: 4,
-  },
-  statValue: {
-    ...TYPOGRAPHY.body2,
-    fontWeight: '700',
-    color: COLORS.text.primary,
-  },
-  contentSection: {
-    marginBottom: SPACING.xxxl,
-  },
-  sectionHeading: {
-    ...TYPOGRAPHY.h3,
-    color: COLORS.text.primary,
-    marginBottom: SPACING.lg,
-  },
-  descriptionText: {
-    ...TYPOGRAPHY.body1,
-    color: COLORS.text.secondary,
-    lineHeight: 28,
-  },
-  companyCard: {
-    backgroundColor: COLORS.background.secondary,
-    padding: SPACING.xl,
-    borderRadius: BORDER_RADIUS.lg,
-  },
-  companyCardTitle: {
-    ...TYPOGRAPHY.h4,
-    color: COLORS.text.primary,
-    marginBottom: SPACING.sm,
-  },
-  companyCardDesc: {
-    ...TYPOGRAPHY.body2,
-    color: COLORS.text.secondary,
-    lineHeight: 22,
-    marginBottom: SPACING.lg,
-  },
-  companyCardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  readMoreText: {
-    ...TYPOGRAPHY.interactiveSmall,
-    color: COLORS.primary,
-  },
-  bottomBar: {
-    position: 'absolute', 
-    bottom: 0, 
-    left: 0, 
-    right: 0,
-    flexDirection: 'row', 
-    paddingHorizontal: SPACING.xxxl,
-    paddingTop: SPACING.lg,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
-    backgroundColor: COLORS.white, 
-    borderTopWidth: 1, 
-    borderTopColor: COLORS.border,
-  },
-  saveBtn: {
-    width: 56, 
-    height: 56, 
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.background.secondary,
+  navBtn: { 
+    width: 32, 
+    height: 32, 
+    borderRadius: 16, 
+    backgroundColor: '#F9FAFB', 
     justifyContent: 'center', 
-    alignItems: 'center', 
-    marginRight: SPACING.lg,
+    alignItems: 'center' 
   },
-  saveBtnActive: { 
-    backgroundColor: COLORS.primaryLight,
-  },
-  applyBtn: { 
-    flex: 1, 
-    height: 56 
-  },
+  navTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text.primary, flex: 1, textAlign: 'center' },
+  scrollContent: { paddingBottom: 40 },
+  headerCard: { backgroundColor: COLORS.white, padding: 24, paddingHorizontal: 28, marginBottom: 8 },
+  jobTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text.primary, marginBottom: 10, lineHeight: 24 },
+  salaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  salary: { fontSize: 16, color: COLORS.primary, fontWeight: '800' },
+  tag: { backgroundColor: '#F0FDF4', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
+  tagText: { color: COLORS.primary, fontSize: 10, fontWeight: '700' },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  locationText: { fontSize: 12, color: COLORS.text.secondary, fontWeight: '500' },
+  
+  aiCard: { backgroundColor: '#F0FDF4', marginHorizontal: 28, borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#DCFCE7' },
+  aiHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  aiTitle: { fontSize: 13, fontWeight: '800', color: '#166534' },
+  aiSubtitle: { fontSize: 10, color: '#166534', opacity: 0.8 },
+  aiStats: { flexDirection: 'row', alignItems: 'center' },
+  aiStatItem: { flex: 1, alignItems: 'center' },
+  aiStatValue: { fontSize: 16, fontWeight: '800', color: '#166534' },
+  aiStatLabel: { fontSize: 10, color: '#166534' },
+  aiStatDivider: { width: 1, height: 20, backgroundColor: '#DCFCE7' },
+  
+  companyCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, padding: 16, marginHorizontal: 28, borderRadius: 14, marginBottom: 12, ...SHADOW.sm, borderWidth: 0.5, borderColor: '#F5F5F5' },
+  logoContainer: { marginRight: 12 },
+  logo: { width: 44, height: 44, borderRadius: 8 },
+  logoPlaceholder: { width: 44, height: 44, borderRadius: 8, backgroundColor: COLORS.gray[50], justifyContent: 'center', alignItems: 'center' },
+  logoLetter: { fontSize: 18, fontWeight: '800', color: COLORS.primary },
+  companyInfo: { flex: 1 },
+  companyHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  companyName: { fontSize: 13, fontWeight: '700', color: COLORS.text.primary, flexShrink: 1 },
+  viewCompany: { fontSize: 11, color: COLORS.primary, fontWeight: '600' },
+  
+  section: { backgroundColor: COLORS.white, padding: 20, paddingHorizontal: 28, marginBottom: 8 },
+  sectionTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text.primary, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: COLORS.primary, paddingLeft: 10 },
+  sectionContent: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 20, fontWeight: '400' },
+  skillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  skillTag: { backgroundColor: '#F3F4F6', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  skillText: { fontSize: 10, color: COLORS.text.secondary, fontWeight: '600' },
+  
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', backgroundColor: COLORS.white, paddingHorizontal: 28, paddingTop: 10, paddingBottom: Platform.OS === 'ios' ? 30 : 16, gap: 12, borderTopWidth: 0.5, borderTopColor: '#F0F0F0' },
+  saveBtn: { width: 48, height: 48, borderRadius: 12, borderWidth: 1, borderColor: '#F0F0F0', justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' },
+  saveBtnActive: { borderColor: COLORS.primary, backgroundColor: '#F0FDF4' },
+  applyBtn: { flex: 1, height: 48, backgroundColor: COLORS.primary, borderRadius: 24, justifyContent: 'center', alignItems: 'center', ...SHADOW.sm },
+  appliedBtn: { backgroundColor: COLORS.text.light },
+  applyBtnText: { color: COLORS.white, fontSize: 14, fontWeight: '800' },
 });

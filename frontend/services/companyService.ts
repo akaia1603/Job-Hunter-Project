@@ -1,6 +1,6 @@
 // Company Service
 import { Company, Job } from '@/types/job.types';
-import { PaginationResponse } from '@/types/common.types';
+import { PaginationResponse, ApiResponse } from '@/types/common.types';
 import { API_CONFIG, ENDPOINTS } from '@constants/endpoints';
 import { MOCK_COMPANIES, MOCK_JOBS } from './mockData';
 import api from './api';
@@ -24,6 +24,19 @@ class CompanyService {
       return company;
     }
     const response = await api.get(ENDPOINTS.COMPANIES.DETAIL(id));
+    return (response.data as any).data;
+  }
+
+  /**
+   * Admin approve or deactivate a company
+   */
+  async updateStatus(id: number, active: boolean): Promise<Company> {
+    if (API_CONFIG.USE_MOCK) {
+      const idx = MOCK_COMPANIES.findIndex(c => c.id === id);
+      if (idx !== -1) MOCK_COMPANIES[idx].active = active;
+      return MOCK_COMPANIES[idx];
+    }
+    const response = await api.put(ENDPOINTS.COMPANIES.UPDATE, { id, active });
     return (response.data as any).data;
   }
 

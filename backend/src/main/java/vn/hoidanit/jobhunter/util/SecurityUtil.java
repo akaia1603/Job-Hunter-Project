@@ -56,11 +56,13 @@ public class SecurityUtil {
         Instant now = Instant.now();
         Instant validity = now.plus(this.accessTokenExpiration, ChronoUnit.SECONDS);
 
-        // hardcode permission (for testing)
+        // Lấy permissions thực tế từ Role của user trong dto
         List<String> listAuthority = new ArrayList<String>();
-
-        listAuthority.add("ROLE_USER_CREATE");
-        listAuthority.add("ROLE_USER_UPDATE");
+        if (dto.getUser().getRole() != null && dto.getUser().getRole().getPermissions() != null) {
+            listAuthority = dto.getUser().getRole().getPermissions()
+                    .stream().map(p -> p.getName())
+                    .collect(java.util.stream.Collectors.toList());
+        }
 
         // @formatter:off
         JwtClaimsSet claims = JwtClaimsSet.builder()

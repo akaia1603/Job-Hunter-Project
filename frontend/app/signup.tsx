@@ -3,7 +3,8 @@ import { BORDER_RADIUS, COLORS, SPACING, TYPOGRAPHY } from '@constants/theme';
 import { useAuth } from '@hooks/index';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -37,12 +38,10 @@ export default function SignUpScreen() {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backIcon}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Tạo tài khoản</Text>
+            <Image source={require('../assets/images/logotopCV.jpg')} style={styles.logo} resizeMode="contain" />
         </View>
 
+        <Text style={styles.headerTitle}>Tạo tài khoản</Text>
         <Text style={styles.subtitleText}>Đăng ký ngay để trải nghiệm các tính năng tìm việc thông minh AI</Text>
 
         {/* Roles Select */}
@@ -68,6 +67,21 @@ export default function SignUpScreen() {
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           <Button title="Đăng ký tài khoản" onPress={handleSignUp} isLoading={isLoading} fullWidth style={styles.registerButton} />
+          
+          <View style={styles.dividerContainer}>
+            <View style={styles.divider} />
+            <Text style={styles.dividerText}>Hoặc đăng ký bằng</Text>
+            <View style={styles.divider} />
+          </View>
+
+          <View style={styles.socialContainer}>
+            <TouchableOpacity style={styles.socialBtn}>
+              <Ionicons name="logo-google" size={24} color="#DB4437" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.socialBtn}>
+              <Ionicons name="logo-facebook" size={24} color="#4267B2" />
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.loginContainer}>
             <Text style={styles.hasAccountText}>Đã có tài khoản? </Text>
@@ -84,11 +98,10 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background.primary },
   scrollContent: { flexGrow: 1, paddingHorizontal: SPACING.xl, paddingTop: Platform.OS === 'ios' ? 60 : 40, paddingBottom: SPACING.xxxl },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md },
-  backButton: { padding: SPACING.sm, marginRight: SPACING.sm, marginLeft: -SPACING.sm },
-  backIcon: { fontSize: 28, color: COLORS.text.primary, fontWeight: '300' },
-  headerTitle: { ...TYPOGRAPHY.h2, color: COLORS.text.primary },
-  subtitleText: { ...TYPOGRAPHY.body2, color: COLORS.text.secondary, marginBottom: SPACING.xl },
+  header: { alignItems: 'center', marginBottom: SPACING.md },
+  logo: { width: 150, height: 60, marginBottom: SPACING.md },
+  headerTitle: { ...TYPOGRAPHY.h2, color: COLORS.text.primary, textAlign: 'center', marginBottom: SPACING.sm },
+  subtitleText: { ...TYPOGRAPHY.body2, color: COLORS.text.secondary, marginBottom: SPACING.xl, textAlign: 'center' },
   roleContainer: { flexDirection: 'row', backgroundColor: COLORS.gray[100], borderRadius: BORDER_RADIUS.full, padding: 4, marginBottom: SPACING.xxl },
   roleBtn: { flex: 1, paddingVertical: SPACING.sm, alignItems: 'center', borderRadius: BORDER_RADIUS.full },
   roleBtnActive: { backgroundColor: COLORS.white, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
@@ -97,6 +110,11 @@ const styles = StyleSheet.create({
   formContainer: {},
   errorText: { ...TYPOGRAPHY.caption, color: COLORS.error, marginBottom: SPACING.md, marginTop: -SPACING.sm },
   registerButton: { marginTop: SPACING.md, marginBottom: SPACING.xl },
+  dividerContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.lg },
+  divider: { flex: 1, height: 1, backgroundColor: COLORS.gray[200] },
+  dividerText: { marginHorizontal: SPACING.sm, color: COLORS.text.tertiary, ...TYPOGRAPHY.caption },
+  socialContainer: { flexDirection: 'row', justifyContent: 'center', gap: SPACING.md, marginBottom: SPACING.xl },
+  socialBtn: { padding: SPACING.sm, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.gray[200], backgroundColor: COLORS.white },
   loginContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   hasAccountText: { ...TYPOGRAPHY.body2, color: COLORS.text.secondary },
   loginText: { ...TYPOGRAPHY.body2, color: COLORS.primary, fontWeight: '700' },

@@ -1,8 +1,8 @@
-// JobCard component — Refined minimalist design
+// Refactored JobCard component - No inline styles
 import { Job } from '@/types/job.types';
-import { BORDER_RADIUS, COLORS, SHADOW, SPACING, TYPOGRAPHY } from '@constants/theme';
+import { COLORS, SHADOW } from '@constants/theme';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import MatchScore from '../MatchScore/MatchScore';
 
 interface JobCardProps {
@@ -14,99 +14,71 @@ interface JobCardProps {
 }
 
 const formatSalary = (salary: number): string => {
+  if (salary === 0) return 'Thoả thuận';
   if (salary >= 1000000) return (salary / 1000000).toFixed(0) + ' triệu';
   return new Intl.NumberFormat('vi-VN').format(salary);
 };
 
-const formatRelativeTime = (date: string): string => {
-  const diff = Date.now() - new Date(date).getTime();
-  const days = Math.floor(diff / 86400000);
-  if (days === 0) return 'Hôm nay';
-  if (days === 1) return 'Hôm qua';
-  if (days < 7) return `${days} ngày trước`;
-  if (days < 30) return `${Math.floor(days / 7)} tuần trước`;
-  return `${Math.floor(days / 30)} tháng trước`;
-};
-
-const JobCard: React.FC<JobCardProps> = ({ job, onPress, onSavePress, showMatchScore = false, style }) => {
+const JobCard: React.FC<JobCardProps> = ({ 
+  job, 
+  onPress, 
+  onSavePress, 
+  showMatchScore = false,
+  style 
+}) => {
   return (
     <TouchableOpacity
-      style={[styles.container, job.isPremium && styles.premiumContainer, style]}
+      style={[styles.container, style]}
       onPress={onPress}
-      activeOpacity={0.8}
+      activeOpacity={0.7}
     >
-      {/* Header Row */}
       <View style={styles.header}>
         <View style={styles.logoContainer}>
-          <View style={[styles.logoPlaceholder, { backgroundColor: job.isPremium ? COLORS.goldLight : COLORS.primaryLight }]}>
-            <Text style={[styles.logoLetter, { color: job.isPremium ? COLORS.goldDark : COLORS.primary }]}>
-              {job.company.name?.charAt(0) || 'C'}
-            </Text>
-          </View>
-          {job.isPremium && (
-            <View style={styles.premiumBadge}>
-              <Text style={styles.premiumBadgeText}>★</Text>
+          {job.company.logo ? (
+            <Image source={{ uri: job.company.logo }} style={styles.logo} />
+          ) : (
+            <View style={styles.logoPlaceholder}>
+              <Text style={styles.logoLetter}>
+                {job.company.name?.charAt(0) || 'C'}
+              </Text>
             </View>
           )}
         </View>
 
         <View style={styles.jobInfo}>
-          <View style={styles.companyRow}>
-            <Text style={styles.companyName} numberOfLines={1}>{job.company.name}</Text>
-            {job.isPremium && <Text style={styles.priorityLabel}>Ưu tiên</Text>}
+          <View style={styles.titleRow}>
+            <Text style={styles.jobTitle} numberOfLines={1}>{job.name}</Text>
+            <View style={styles.verifiedBadge}>
+              <Text style={styles.verifiedIcon}>✓</Text>
+            </View>
           </View>
-          <Text style={styles.jobTitle} numberOfLines={2}>{job.name}</Text>
+          <Text style={styles.companyName} numberOfLines={1}>{job.company.name}</Text>
         </View>
 
-        <View style={styles.rightSection}>
-          {showMatchScore && job.matchScore !== undefined ? (
-            <MatchScore score={job.matchScore} size={38} showLabel={false} />
-          ) : (
-            <TouchableOpacity
-              style={styles.saveButton}
-              onPress={onSavePress}
-              activeOpacity={0.6}
-            >
-              <Text style={[styles.saveIcon, job.isSaved && styles.savedIcon]}>
-                {job.isSaved ? '★' : '☆'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* Info Row */}
-      <View style={styles.infoRow}>
-        <Text style={styles.salary}>{formatSalary(job.salary)} VND</Text>
-        <Text style={styles.dot}>•</Text>
-        <Text style={styles.location}>{job.location}</Text>
-      </View>
-
-      {/* Tags Row */}
-      <View style={styles.tagsRow}>
-        {job.isUrgent && (
-          <View style={styles.urgentTag}>
-            <Text style={styles.urgentText}>Tuyển gấp</Text>
-          </View>
+        {showMatchScore && job.matchScore !== undefined && (
+          <MatchScore score={job.matchScore} size={32} showLabel={false} />
         )}
-        <View style={styles.tag}>
-          <Text style={styles.tagText}>{job.level}</Text>
-        </View>
-        {job.skills.slice(0, 1).map(skill => (
-          <View key={skill.id} style={styles.tag}>
-            <Text style={styles.tagText}>{skill.name}</Text>
-          </View>
-        ))}
       </View>
 
-      {/* Footer */}
       <View style={styles.footer}>
-        <Text style={styles.time}>{formatRelativeTime(job.createdAt)}</Text>
-        {job.isPremium && (
-          <View style={styles.premiumIndicator}>
-            <Text style={styles.premiumText}>Ưu tiên</Text>
+        <View style={styles.tagsContainer}>
+          <View style={styles.salaryTag}>
+            <Text style={styles.salaryText}>{formatSalary(job.salary)}</Text>
           </View>
-        )}
+          <View style={styles.locationTag}>
+            <Text style={styles.locationText}>{job.location}</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.saveButton}
+          onPress={onSavePress}
+          activeOpacity={0.6}
+        >
+          <Text style={[styles.saveIcon, job.isSaved && styles.savedIcon]}>
+            {job.isSaved ? '♥' : '♡'}
+          </Text>
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
@@ -115,171 +87,117 @@ const JobCard: React.FC<JobCardProps> = ({ job, onPress, onSavePress, showMatchS
 const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.xl,
-    marginBottom: SPACING.md,
-    ...SHADOW.sm,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#F0F0F0',
+    ...SHADOW.sm,
   },
-  premiumContainer: {
-    borderColor: COLORS.gold + '30',
-    backgroundColor: '#FFFCF5', // Very subtle gold tint
-  },
-  header: { 
-    flexDirection: 'row', 
+  header: {
+    flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: SPACING.md,
   },
   logoContainer: {
-    marginRight: SPACING.md,
-    position: 'relative',
+    marginRight: 10,
   },
-  premiumBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    backgroundColor: COLORS.gold,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: COLORS.white,
-  },
-  premiumBadgeText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  companyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  priorityLabel: {
-    marginLeft: SPACING.sm,
-    backgroundColor: COLORS.gold + '15',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.sm,
-    fontSize: 9,
-    fontWeight: '700',
-    color: COLORS.gold,
-    textTransform: 'uppercase',
+  logo: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 0.5,
+    borderColor: '#EEEEEE',
   },
   logoPlaceholder: {
-    width: 48, 
-    height: 48, 
-    borderRadius: BORDER_RADIUS.md,
-    justifyContent: 'center', 
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: COLORS.gray[50],
+    justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 0.5,
+    borderColor: '#EEEEEE',
   },
-  logoLetter: { 
-    fontSize: 20, 
-    fontWeight: '700',
-  },
-  jobInfo: { 
-    flex: 1, 
-    marginRight: SPACING.sm,
-  },
-  companyName: { 
-    ...TYPOGRAPHY.label,
-    color: COLORS.text.secondary,
-    marginBottom: 4,
-  },
-  jobTitle: { 
-    ...TYPOGRAPHY.h4, 
-    color: COLORS.text.primary,
-  },
-  rightSection: { 
-    alignItems: 'flex-end',
-  },
-  saveButton: { 
-    width: 32, 
-    height: 32, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
-  },
-  saveIcon: { 
-    fontSize: 22, 
-    color: COLORS.text.light 
-  },
-  savedIcon: { 
-    color: COLORS.gold 
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
-  },
-  salary: { 
-    ...TYPOGRAPHY.body2,
+  logoLetter: {
+    fontSize: 16,
     fontWeight: '700',
     color: COLORS.primary,
   },
-  dot: {
-    marginHorizontal: SPACING.sm,
-    color: COLORS.text.light,
+  jobInfo: {
+    flex: 1,
   },
-  location: { 
-    ...TYPOGRAPHY.body2,
-    color: COLORS.text.secondary,
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  tagsRow: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    gap: SPACING.sm,
-    marginBottom: SPACING.md,
+  jobTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+    lineHeight: 20,
+    flexShrink: 1,
   },
-  urgentTag: {
-    backgroundColor: COLORS.error + '10',
-    paddingHorizontal: 10, 
-    paddingVertical: 4, 
-    borderRadius: BORDER_RADIUS.sm,
+  verifiedBadge: {
+    backgroundColor: COLORS.primary,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  urgentText: { 
-    fontSize: 10, 
-    fontWeight: '700', 
-    color: COLORS.error,
-    textTransform: 'uppercase',
+  verifiedIcon: {
+    color: COLORS.white,
+    fontSize: 7,
+    fontWeight: 'bold',
   },
-  tag: {
-    backgroundColor: COLORS.background.secondary,
-    paddingHorizontal: 10, 
-    paddingVertical: 4, 
-    borderRadius: BORDER_RADIUS.sm,
-  },
-  tagText: { 
-    fontSize: 10, 
-    fontWeight: '600', 
+  companyName: {
+    fontSize: 11,
     color: COLORS.text.secondary,
     textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginTop: 2,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
+    marginTop: 10,
   },
-  time: { 
-    ...TYPOGRAPHY.caption, 
-    color: COLORS.text.light 
+  tagsContainer: {
+    flexDirection: 'row',
+    gap: 6,
   },
-  premiumIndicator: {
-    backgroundColor: COLORS.gold,
+  salaryTag: {
+    backgroundColor: COLORS.primaryLight,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  premiumText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: COLORS.white,
-    textTransform: 'uppercase',
+  salaryText: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  locationTag: {
+    backgroundColor: COLORS.gray[100],
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  locationText: {
+    color: COLORS.text.secondary,
+    fontSize: 11,
+  },
+  saveButton: {
+    padding: 4,
+  },
+  saveIcon: {
+    fontSize: 18,
+    color: COLORS.gray[400],
+  },
+  savedIcon: {
+    color: COLORS.error,
   },
 });
 

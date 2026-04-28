@@ -1,43 +1,23 @@
 package vn.hoidanit.jobhunter.domain;
 
+import jakarta.persistence.*;
 import java.time.Instant;
-
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
-import lombok.Getter;
-import lombok.Setter;
 
 @Entity
 @Table(name = "notifications")
-@Getter
-@Setter
 public class Notification {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    private String type; // JOB_MATCH, APPLICATION_UPDATE, etc.
-    
-    private String title;
-    
-    private String body;
-    
+    private String content;
+    private String type; // e.g., "STATUS_UPDATE", "NEW_APPLICATION"
     private boolean isRead = false;
-    
-    private String data; // JSON string to store arbitrary data like jobId, applicationId, etc.
-    
-    private String icon;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "user_id")
-    private User user;
+    private User user; // Người nhận thông báo
 
     private Instant createdAt;
 
@@ -45,4 +25,18 @@ public class Notification {
     public void handleBeforeCreate() {
         this.createdAt = Instant.now();
     }
+
+    // Getters and setters
+    public long getId() { return id; }
+    public void setId(long id) { this.id = id; }
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; }
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
+    public boolean isRead() { return isRead; }
+    public void setRead(boolean read) { isRead = read; }
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

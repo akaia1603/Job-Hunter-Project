@@ -1,4 +1,9 @@
-// Skill Tag component - Refined & Elegant
+/**
+ * @component SkillTag
+ * @description Thành phần hiển thị nhãn dán kỹ năng (Skill) hoặc các nhãn phân loại.
+ * @path frontend/components/SkillTag/SkillTag.tsx
+ */
+
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '@constants/theme';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, ViewStyle, View } from 'react-native';

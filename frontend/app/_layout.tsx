@@ -1,9 +1,10 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Platform, StyleSheet, useColorScheme, View } from 'react-native';
+import { useEffect } from 'react';
+import { ActivityIndicator, Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import 'react-native-reanimated';
-import { AuthProvider } from '../context/AuthContext';
+import { useAuthStore } from '../store/authStore';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -11,24 +12,38 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const { restoreAuth, isLoading } = useAuthStore();
+
+  useEffect(() => {
+    restoreAuth();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <View style={styles.webContainer}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   const appContent = (
-    <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="signup" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="detail" options={{ headerShown: true, title: 'Chi tiết việc làm', headerBackTitle: 'Quay lại' }} />
-          <Stack.Screen name="company-detail" options={{ headerShown: true, title: 'Chi tiết công ty', headerBackTitle: 'Quay lại' }} />
-          <Stack.Screen name="premium" options={{ headerShown: true, title: 'Gói Premium', headerBackTitle: 'Đóng' }} />
-          <Stack.Screen name="saved-jobs" options={{ headerShown: true, title: 'Việc làm đã lưu', headerBackTitle: 'Quay lại' }} />
-          <Stack.Screen name="profile-edit" options={{ headerShown: true, title: 'Cập nhật hồ sơ', headerBackTitle: 'Hủy' }} />
-          <Stack.Screen name="cv-builder" options={{ headerShown: true, title: 'Tạo CV', headerBackTitle: 'Quay lại' }} />
-        </Stack>
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    </AuthProvider>
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="login" />
+        <Stack.Screen name="signup" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="detail" options={{ headerShown: false }} />
+        <Stack.Screen name="company-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="premium" options={{ headerShown: true, title: 'Gói Premium', headerBackTitle: 'Đóng' }} />
+        <Stack.Screen name="saved-jobs" options={{ headerShown: false }} />
+        <Stack.Screen name="profile-edit" options={{ headerShown: false }} />
+        <Stack.Screen name="cv-builder" options={{ headerShown: false }} />
+        <Stack.Screen name="upload-cv" options={{ headerShown: false }} />
+        <Stack.Screen name="account-settings" options={{ headerShown: false }} />
+      </Stack>
+      <StatusBar style="auto" />
+    </ThemeProvider>
   );
 
   if (Platform.OS === 'web') {

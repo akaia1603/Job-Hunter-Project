@@ -191,7 +191,24 @@ public class UserService {
         }
     }
 
+    public User updateAvatar(String email, String avatarName) {
+        User currentUser = this.handleGetUserByUsername(email);
+        if (currentUser != null) {
+            currentUser.setAvatar(avatarName);
+            return this.userRepository.save(currentUser);
+        }
+        return null;
+    }
+
     public User getUserByRefreshTokenAndEmail(String token, String email) {
         return this.userRepository.findByRefreshTokenAndEmail(token, email);
+    }
+
+    public void handleChangePassword(String email, String newPassword) {
+        User user = this.handleGetUserByUsername(email);
+        if (user != null) {
+            user.setPassword(newPassword);
+            this.userRepository.save(user);
+        }
     }
 }

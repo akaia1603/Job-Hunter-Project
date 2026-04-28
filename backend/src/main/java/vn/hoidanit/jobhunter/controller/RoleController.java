@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.turkraft.springfilter.boot.Filter;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import vn.hoidanit.jobhunter.domain.Role;
 import vn.hoidanit.jobhunter.domain.response.ResultPaginationDTO;
@@ -20,8 +23,12 @@ import vn.hoidanit.jobhunter.service.RoleService;
 import vn.hoidanit.jobhunter.util.annotation.ApiMessage;
 import vn.hoidanit.jobhunter.util.error.IdInvalidException;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/v1")
+@Tag(name = "Role", description = "API Quản lý Vai trò (Phân quyền nhóm)")
+@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
 public class RoleController {
 
     private final RoleService roleService;
@@ -32,6 +39,7 @@ public class RoleController {
 
     @PostMapping("/roles")
     @ApiMessage("Create a role")
+    @Operation(summary = "Tạo mới vai trò", description = "Tạo một nhóm quyền mới (Ví dụ: HR, ADMIN, USER)")
     public ResponseEntity<Role> create(@Valid @RequestBody Role r) throws IdInvalidException {
         // check name
         if (this.roleService.existByName(r.getName())) {
@@ -42,23 +50,19 @@ public class RoleController {
 
     @PutMapping("/roles")
     @ApiMessage("Update a role")
+    @Operation(summary = "Cập nhật vai trò", description = "Sửa đổi thông tin hoặc danh sách quyền của một vai trò")
     public ResponseEntity<Role> update(@Valid @RequestBody Role r) throws IdInvalidException {
         // check id
         if (this.roleService.fetchById(r.getId()) == null) {
             throw new IdInvalidException("Role với id = " + r.getId() + " không tồn tại");
         }
 
-        // check name
-        // if (this.roleService.existByName(r.getName())) {
-        // throw new IdInvalidException("Role với name = " + r.getName() + " đã tồn
-        // tại");
-        // }
-
         return ResponseEntity.ok().body(this.roleService.update(r));
     }
 
     @DeleteMapping("/roles/{id}")
     @ApiMessage("Delete a role")
+    @Operation(summary = "Xóa vai trò", description = "Xóa vai trò khỏi hệ thống dựa trên ID")
     public ResponseEntity<Void> delete(@PathVariable("id") long id) throws IdInvalidException {
         // check id
         if (this.roleService.fetchById(id) == null) {
@@ -70,6 +74,7 @@ public class RoleController {
 
     @GetMapping("/roles")
     @ApiMessage("Fetch roles")
+    @Operation(summary = "Lấy danh sách vai trò", description = "Lấy toàn bộ vai trò hiện có với phân trang")
     public ResponseEntity<ResultPaginationDTO> getPermissions(
             @Filter Specification<Role> spec, Pageable pageable) {
 
@@ -78,6 +83,7 @@ public class RoleController {
 
     @GetMapping("/roles/{id}")
     @ApiMessage("Fetch role by id")
+    @Operation(summary = "Lấy chi tiết vai trò", description = "Xem thông tin và các quyền chi tiết của một vai trò")
     public ResponseEntity<Role> getById(@PathVariable("id") long id) throws IdInvalidException {
 
         Role role = this.roleService.fetchById(id);

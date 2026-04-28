@@ -46,6 +46,8 @@ public class PermissionInterceptor implements HandlerInterceptor {
                 Role role = user.getRole();
                 if (role != null) {
                     List<Permission> permissions = role.getPermissions();
+
+                    // Allow public GET requests are now handled by SecurityConfiguration
                     boolean isAllow = permissions.stream().anyMatch(item -> item.getApiPath().equals(path)
                             && item.getMethod().equals(httpMethod));
 

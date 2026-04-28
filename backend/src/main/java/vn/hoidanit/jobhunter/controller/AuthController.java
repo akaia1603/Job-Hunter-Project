@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import vn.hoidanit.jobhunter.domain.User;
 import vn.hoidanit.jobhunter.domain.request.ReqLoginDTO;
@@ -31,6 +33,7 @@ import vn.hoidanit.jobhunter.util.error.IdInvalidException;
 
 @RestController
 @RequestMapping("/api/v1")
+@Tag(name = "Auth", description = "API Xác thực người dùng (Login/Logout/Register)")
 public class AuthController {
 
     private final AuthenticationManagerBuilder authenticationManagerBuilder;
@@ -56,6 +59,7 @@ public class AuthController {
     }
 
     @PostMapping("/auth/login")
+    @Operation(summary = "Đăng nhập", description = "Lấy Access Token và Refresh Token thông qua Email/Password")
     public ResponseEntity<ResLoginDTO> login(@Valid @RequestBody ReqLoginDTO loginDto) {
         // Nạp input gồm username/password vào Security
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
@@ -116,6 +120,7 @@ public class AuthController {
 
     @GetMapping("/auth/account")
     @ApiMessage("fetch account")
+    @Operation(summary = "Lấy thông tin tài khoản hiện tại", description = "Kiểm tra Token và trả về thông tin người dùng đang đăng nhập")
     public ResponseEntity<ResLoginDTO.UserGetAccount> getAccount() {
         String email = SecurityUtil.getCurrentUserLogin().isPresent()
                 ? SecurityUtil.getCurrentUserLogin().get()
@@ -139,6 +144,7 @@ public class AuthController {
 
     @GetMapping("/auth/refresh")
     @ApiMessage("Get User by refresh token")
+    @Operation(summary = "Lấy Access Token mới", description = "Sử dụng Refresh Token trong Cookie để cấp lại Access Token mới")
     public ResponseEntity<ResLoginDTO> getRefreshToken(
             @CookieValue(name = "refresh_token", defaultValue = "abc") String refresh_token) throws IdInvalidException {
         if (refresh_token.equals("abc")) {
@@ -203,6 +209,7 @@ public class AuthController {
 
     @PostMapping("/auth/logout")
     @ApiMessage("Logout User")
+    @Operation(summary = "Đăng xuất", description = "Xóa Session và thu hồi Refresh Token")
     public ResponseEntity<Void> logout() throws IdInvalidException {
         String email = SecurityUtil.getCurrentUserLogin().isPresent() ? SecurityUtil.getCurrentUserLogin().get() : "";
 
@@ -229,6 +236,7 @@ public class AuthController {
 
     @PostMapping("/auth/register")
     @ApiMessage("Register a new user")
+    @Operation(summary = "Đăng ký người dùng", description = "Tạo tài khoản mới cho ứng viên")
     public ResponseEntity<ResCreateUserDTO> register(@Valid @RequestBody User postManUser) throws IdInvalidException {
         boolean isEmailExist = this.userService.isEmailExist(postManUser.getEmail());
         if (isEmailExist) {

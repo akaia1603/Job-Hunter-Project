@@ -1,6 +1,6 @@
 // Base API instance configuration
 import { API_CONFIG, ENDPOINTS } from '@constants/endpoints';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storage } from '@utils/storage';
 import { ApiError } from '@/types/index';
 import { Logger } from '@utils/logger';
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
@@ -29,7 +29,7 @@ class APIClient {
     // Request interceptor
     this.axiosInstance.interceptors.request.use(
       async (config: InternalAxiosRequestConfig) => {
-        const token = await AsyncStorage.getItem('authToken');
+        const token = await storage.getSecure('authToken');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -74,7 +74,7 @@ class APIClient {
           originalRequest._retry = true;
 
           try {
-            const refreshToken = await AsyncStorage.getItem('refreshToken');
+            const refreshToken = await storage.getSecure('refreshToken');
             if (refreshToken) {
               const response = await axios.post(
                 `${API_CONFIG.BASE_URL}/${API_CONFIG.VERSION}${ENDPOINTS.AUTH.REFRESH_TOKEN}`,
@@ -82,7 +82,7 @@ class APIClient {
               );
 
               const { token } = response.data;
-              await AsyncStorage.setItem('authToken', token);
+              await storage.setSecure('authToken', token);
 
               this.failedQueue.forEach((prom) => prom.onSuccess(token));
               this.failedQueue = [];
@@ -93,8 +93,8 @@ class APIClient {
           } catch (err) {
             this.failedQueue.forEach((prom) => prom.onFailed(err as AxiosError));
             this.failedQueue = [];
-            await AsyncStorage.removeItem('authToken');
-            await AsyncStorage.removeItem('refreshToken');
+            await storage.removeSecure('authToken');
+            await storage.removeSecure('refreshToken');
           } finally {
             this.isRefreshing = false;
           }

@@ -14,10 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import vn.hoidanit.jobhunter.domain.Company;
-import vn.hoidanit.jobhunter.domain.Job;
 import vn.hoidanit.jobhunter.domain.User;
-import vn.hoidanit.jobhunter.repository.CompanyRepository;
-import vn.hoidanit.jobhunter.repository.JobRepository;
+import vn.hoidanit.jobhunter.service.PremiumService;
 import vn.hoidanit.jobhunter.service.UserService;
 import vn.hoidanit.jobhunter.util.SecurityUtil;
 import vn.hoidanit.jobhunter.util.annotation.ApiMessage;
@@ -27,13 +25,11 @@ import vn.hoidanit.jobhunter.util.annotation.ApiMessage;
 public class PremiumController {
     
     private final UserService userService;
-    private final CompanyRepository companyRepository;
-    private final JobRepository jobRepository;
+    private final PremiumService premiumService;
 
-    public PremiumController(UserService userService, CompanyRepository companyRepository, JobRepository jobRepository) {
+    public PremiumController(UserService userService, PremiumService premiumService) {
         this.userService = userService;
-        this.companyRepository = companyRepository;
-        this.jobRepository = jobRepository;
+        this.premiumService = premiumService;
     }
 
     @GetMapping("/packages")
@@ -58,30 +54,19 @@ public class PremiumController {
         return ResponseEntity.ok(packages);
     }
 
-    @PostMapping("/subscribe/{tier}")
-    @ApiMessage("Subscribe to a premium package")
-    public ResponseEntity<String> subscribePremium(@PathVariable("tier") String tier) {
+    @PostMapping("/checkout/{tier}")
+    @ApiMessage("Simulate premium checkout")
+    public ResponseEntity<String> checkout(@PathVariable("tier") String tier) {
         String email = SecurityUtil.getCurrentUserLogin().orElse("");
         User currentUser = this.userService.handleGetUserByUsername(email);
         
-        if (currentUser == null || currentUser.getCompany() == null) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only users with a company can subscribe.");
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("User not found.");
         }
 
-        Company company = currentUser.getCompany();
-        company.setIsPremium(true);
-        company.setPremiumTier(tier.toUpperCase());
-        this.companyRepository.save(company);
-
-        // Also update all jobs of this company to be premium
-        List<Job> jobs = company.getJobs();
-        if (jobs != null) {
-            for(Job j : jobs) {
-                j.setIsPremium(true);
-            }
-            this.jobRepository.saveAll(jobs);
-        }
-
-        return ResponseEntity.ok("Successfully upgraded to " + tier);
+        // Tạm thời giả lập thanh toán thành công
+        this.premiumService.subscribePremium(currentUser.getCompany(), tier);
+        
+        return ResponseEntity.ok("Thanh toán thành công gói " + tier);
     }
 }

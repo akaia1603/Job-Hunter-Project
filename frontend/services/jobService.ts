@@ -1,4 +1,4 @@
-// Job Service — with mock/real API adapter
+// Job Service — Real API with mock fallback
 import { Job, JobListRequest, Resume } from '@/types/job.types';
 import { PaginationResponse } from '@/types/common.types';
 import { API_CONFIG, ENDPOINTS } from '@constants/endpoints';
@@ -35,7 +35,6 @@ class JobService {
         filtered = filtered.filter(j => j.salary <= params.salaryMax!);
       }
 
-      // Mark saved jobs
       filtered = filtered.map(j => ({
         ...j,
         isSaved: this.savedJobIds.includes(j.id),
@@ -57,6 +56,7 @@ class JobService {
       };
     }
 
+    // Real API: GET /api/v1/jobs — FormatRestResponse wraps: { statusCode, data: { meta, result }, message }
     const response = await api.get(ENDPOINTS.JOBS.LIST, { params });
     return (response.data as any).data;
   }
@@ -67,8 +67,15 @@ class JobService {
       if (!job) throw new Error('Job not found');
       return { ...job, isSaved: this.savedJobIds.includes(job.id) };
     }
+    // Real API: GET /api/v1/jobs/{id} — returns { data: { job, applicantCount? } }
     const response = await api.get(ENDPOINTS.JOBS.DETAIL(jobId));
-    return (response.data as any).data;
+    const responseData = (response.data as any).data;
+    // Backend returns Map with 'job' key and optional 'applicantCount'
+    const job = responseData.job || responseData;
+    if (responseData.applicantCount !== undefined) {
+      job.applicantCount = responseData.applicantCount;
+    }
+    return job;
   }
 
   async getPremiumJobs(): Promise<Job[]> {
@@ -101,18 +108,45 @@ class JobService {
       return MOCK_JOBS.filter(j => this.savedJobIds.includes(j.id))
         .map(j => ({ ...j, isSaved: true }));
     }
-    // Real API would need a saved-jobs endpoint
-    return [];
+    // Real API: GET /api/v1/jobs/saved — returns { data: [...jobs] }
+    const response = await api.get(ENDPOINTS.SAVED_JOBS.LIST);
+    const jobs = (response.data as any).data || [];
+    return jobs.map((j: Job) => ({ ...j, isSaved: true }));
   }
 
-  async saveJob(jobId: number): Promise<void> {
-    if (!this.savedJobIds.includes(jobId)) {
-      this.savedJobIds.push(jobId);
+  // Toggle save/unsave — single API call handles both
+  async toggleSaveJob(jobId: number): Promise<string> {
+    if (API_CONFIG.USE_MOCK) {
+      if (this.savedJobIds.includes(jobId)) {
+        this.savedJobIds = this.savedJobIds.filter(id => id !== jobId);
+        return 'unsaved';
+      } else {
+        this.savedJobIds.push(jobId);
+        return 'saved';
+      }
     }
+    // Real API: POST /api/v1/jobs/{id}/save — returns String (not wrapped by RestResponse)
+    const response = await api.post(ENDPOINTS.SAVED_JOBS.TOGGLE(jobId));
+    return response.data as string;
+  }
+
+  // Keep legacy methods for compatibility but route through toggle
+  async saveJob(jobId: number): Promise<void> {
+    if (API_CONFIG.USE_MOCK) {
+      if (!this.savedJobIds.includes(jobId)) {
+        this.savedJobIds.push(jobId);
+      }
+      return;
+    }
+    await api.post(ENDPOINTS.SAVED_JOBS.TOGGLE(jobId));
   }
 
   async unsaveJob(jobId: number): Promise<void> {
-    this.savedJobIds = this.savedJobIds.filter(id => id !== jobId);
+    if (API_CONFIG.USE_MOCK) {
+      this.savedJobIds = this.savedJobIds.filter(id => id !== jobId);
+      return;
+    }
+    await api.post(ENDPOINTS.SAVED_JOBS.TOGGLE(jobId));
   }
 
   async isJobSaved(jobId: number): Promise<boolean> {
@@ -120,7 +154,7 @@ class JobService {
   }
 
   // Applications (Resumes in Spring)
-  async applyJob(data: { jobId: number; email: string; url: string }): Promise<Resume> {
+  async applyJob(data: { jobId: number; email: string; url: string; userId?: number }): Promise<Resume> {
     if (API_CONFIG.USE_MOCK) {
       const newApp: Resume = {
         id: MOCK_APPLICATIONS.length + 1,
@@ -128,17 +162,18 @@ class JobService {
         url: data.url,
         status: 'PENDING',
         job: { id: data.jobId, name: MOCK_JOBS.find(j => j.id === data.jobId)?.name || '' },
-        user: { id: 1, name: 'Demo User' },
+        user: { id: data.userId || 1, name: 'Demo User' },
         createdAt: new Date().toISOString(),
         createdBy: data.email,
       };
       MOCK_APPLICATIONS.push(newApp);
       return newApp;
     }
+    // Real API: POST /api/v1/resumes — { email, url, user: { id }, job: { id } }
     const response = await api.post(ENDPOINTS.RESUMES.CREATE, {
       email: data.email,
       url: data.url,
-      user: { id: 1 },
+      user: { id: data.userId },
       job: { id: data.jobId },
     });
     return (response.data as any).data;
@@ -148,7 +183,8 @@ class JobService {
     if (API_CONFIG.USE_MOCK) {
       return MOCK_APPLICATIONS;
     }
-    const response = await api.get(ENDPOINTS.RESUMES.LIST);
+    // Real API: POST /api/v1/resumes/by-user — returns { data: { meta, result } }
+    const response = await api.post(`${ENDPOINTS.RESUMES.LIST}/by-user`);
     return (response.data as any).data?.result || [];
   }
 }

@@ -1,17 +1,9 @@
 package vn.hoidanit.jobhunter.controller;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.URISyntaxException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,76 +12,78 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import vn.hoidanit.jobhunter.domain.User;
 import vn.hoidanit.jobhunter.domain.response.file.ResUploadFileDTO;
 import vn.hoidanit.jobhunter.service.FileService;
+import vn.hoidanit.jobhunter.service.UserService;
+import vn.hoidanit.jobhunter.util.SecurityUtil;
 import vn.hoidanit.jobhunter.util.annotation.ApiMessage;
+import vn.hoidanit.jobhunter.util.error.PermissionException;
 import vn.hoidanit.jobhunter.util.error.StorageException;
 
 @RestController
 @RequestMapping("/api/v1")
+@Tag(name = "File", description = "API Quản lý File (MinIO)")
 public class FileController {
 
-    @Value("${hoidanit.upload-file.base-uri}")
-    private String baseURI;
-
     private final FileService fileService;
+    private final UserService userService;
 
-    public FileController(FileService fileService) {
+    public FileController(FileService fileService, UserService userService) {
         this.fileService = fileService;
+        this.userService = userService;
     }
 
     @PostMapping("/files")
-    @ApiMessage("Upload single file")
+    @ApiMessage("Upload a file")
+    @Operation(summary = "Tải lên file", description = "Tải file lên MinIO (Hỗ trợ CV, Logo công ty, ảnh đại diện)")
     public ResponseEntity<ResUploadFileDTO> upload(
             @RequestParam(name = "file", required = false) MultipartFile file,
-            @RequestParam("folder") String folder
+            @RequestParam(name = "folder", required = false) String folder)
+            throws StorageException, PermissionException, Exception {
 
-    ) throws URISyntaxException, IOException, StorageException {
-        // skip validate
+        // SECURITY CHECK: Only Admin or HR can upload company logos/job files
+        String email = SecurityUtil.getCurrentUserLogin().orElse("");
+        User currentUser = this.userService.handleGetUserByUsername(email);
+
+        if (currentUser != null && currentUser.getRole() != null) {
+            String roleName = currentUser.getRole().getName();
+            // Candidate (NORMAL_USER) can only upload CVs (resumes)
+            if (roleName.equals("NORMAL_USER") && !"resume".equals(folder)) {
+                throw new PermissionException("Bạn chỉ có quyền upload hồ sơ cá nhân (CV).");
+            }
+        }
+
+        // validate file
         if (file == null || file.isEmpty()) {
             throw new StorageException("File is empty. Please upload a file.");
         }
-        String fileName = file.getOriginalFilename();
+
         List<String> allowedExtensions = Arrays.asList("pdf", "jpg", "jpeg", "png", "doc", "docx");
-        boolean isValid = allowedExtensions.stream().anyMatch(item -> fileName.toLowerCase().endsWith(item));
+        String fileName = file.getOriginalFilename();
+        boolean isValid = allowedExtensions.stream().anyMatch(item -> fileName != null && fileName.toLowerCase().endsWith(item));
 
         if (!isValid) {
-            throw new StorageException("Invalid file extension. only allows " + allowedExtensions.toString());
+            throw new StorageException("Invalid file extension. Allowed: " + allowedExtensions.toString());
         }
-        // create a directory if not exist
-        this.fileService.createDirectory(baseURI + folder);
 
         // store file
         String uploadFile = this.fileService.store(file, folder);
 
-        ResUploadFileDTO res = new ResUploadFileDTO(uploadFile, Instant.now());
+        ResUploadFileDTO res = new ResUploadFileDTO();
+        res.setFileName(uploadFile);
+        res.setUploadedAt(Instant.now());
 
         return ResponseEntity.ok().body(res);
     }
 
     @GetMapping("/files")
-    @ApiMessage("Download a file")
-    public ResponseEntity<Resource> download(
-            @RequestParam(name = "fileName", required = false) String fileName,
-            @RequestParam(name = "folder", required = false) String folder)
-            throws StorageException, URISyntaxException, FileNotFoundException {
-        if (fileName == null || folder == null) {
-            throw new StorageException("Missing required params : (fileName or folder) in query params.");
-        }
-
-        // check file exist (and not a directory)
-        long fileLength = this.fileService.getFileLength(fileName, folder);
-        if (fileLength == 0) {
-            throw new StorageException("File with name = " + fileName + " not found.");
-        }
-
-        // download a file
-        InputStreamResource resource = this.fileService.getResource(fileName, folder);
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
-                .contentLength(fileLength)
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(resource);
+    @ApiMessage("Get file URL from MinIO")
+    @Operation(summary = "Lấy link tải file", description = "Lấy đường dẫn URL trực tiếp từ MinIO để xem hoặc tải file")
+    public ResponseEntity<String> getFileUrl(
+            @RequestParam(name = "fileName") String fileName) {
+        return ResponseEntity.ok().body(this.fileService.getFileUrl(fileName));
     }
 }

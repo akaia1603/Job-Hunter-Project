@@ -10,6 +10,12 @@ import { AuthNavigator } from './AuthNavigator';
 export const RootNavigator: React.FC = () => {
   const { state } = useAuth();
 
+  console.log('DEBUG ROOT NAVIGATOR: State:', {
+    isLoading: state.isLoading,
+    isAuthenticated: state.isAuthenticated,
+    user: state.user ? state.user.name : 'null',
+  });
+
   if (state.isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>

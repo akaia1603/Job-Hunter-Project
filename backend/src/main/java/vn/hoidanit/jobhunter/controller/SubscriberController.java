@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import vn.hoidanit.jobhunter.domain.Subscriber;
 import vn.hoidanit.jobhunter.service.SubscriberService;
@@ -17,6 +19,7 @@ import vn.hoidanit.jobhunter.util.error.IdInvalidException;
 
 @RestController
 @RequestMapping("/api/v1")
+@Tag(name = "Subscriber", description = "API Quản lý người đăng ký nhận tin")
 public class SubscriberController {
     private final SubscriberService subscriberService;
 
@@ -26,6 +29,7 @@ public class SubscriberController {
 
     @PostMapping("/subscribers")
     @ApiMessage("Create a subscriber")
+    @Operation(summary = "Đăng ký nhận tin", description = "Người dùng đăng ký nhận email thông báo cho các kỹ năng quan tâm")
     public ResponseEntity<Subscriber> create(@Valid @RequestBody Subscriber sub) throws IdInvalidException {
         // check email
         boolean isExist = this.subscriberService.isExistsByEmail(sub.getEmail());
@@ -38,6 +42,7 @@ public class SubscriberController {
 
     @PutMapping("/subscribers")
     @ApiMessage("Update a subscriber")
+    @Operation(summary = "Cập nhật đăng ký", description = "Sửa đổi kỹ năng hoặc thông tin người đăng ký")
     public ResponseEntity<Subscriber> update(@RequestBody Subscriber subsRequest) throws IdInvalidException {
         // check id
         Subscriber subsDB = this.subscriberService.findById(subsRequest.getId());
@@ -49,6 +54,7 @@ public class SubscriberController {
 
     @PostMapping("/subscribers/skills")
     @ApiMessage("Get subscriber's skill")
+    @Operation(summary = "Lấy kỹ năng người đăng ký", description = "Lấy thông tin kỹ năng mà người dùng hiện tại đang đăng ký nhận tin")
     public ResponseEntity<Subscriber> getSubscribersSkill() throws IdInvalidException {
         String email = SecurityUtil.getCurrentUserLogin().isPresent() == true
                 ? SecurityUtil.getCurrentUserLogin().get()

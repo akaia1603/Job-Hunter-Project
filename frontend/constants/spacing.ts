@@ -15,12 +15,12 @@ export const SPACING = {
 
 export const BORDER_RADIUS = {
   none: 0,
-  sm: 6,      // Slightly more rounded
-  md: 10,     // Slightly more rounded
-  lg: 16,
-  xl: 20,
-  '2xl': 24,
-  '3xl': 32,
+  sm: 8,
+  md: 12,
+  lg: 20,
+  xl: 24,
+  '2xl': 32,
+  '3xl': 40,
   full: 9999,
 } as const;
 

@@ -1,56 +1,60 @@
-// Notification Service
-import { NotificationItem, NotificationGroup } from '@/types/notification.types';
+// Notification Service — Real API with mock fallback
+import { API_CONFIG, ENDPOINTS } from '@constants/endpoints';
+import { NotificationItem } from '@/types/notification.types';
 import { MOCK_NOTIFICATIONS } from './mockData';
+import api from './api';
 
 class NotificationService {
-  private notifications: NotificationItem[] = [...MOCK_NOTIFICATIONS];
-
-  async getNotifications(): Promise<NotificationItem[]> {
-    return this.notifications;
-  }
-
-  async getGroupedNotifications(): Promise<NotificationGroup[]> {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today.getTime() - 86400000);
-    const weekAgo = new Date(today.getTime() - 7 * 86400000);
-
-    const groups: NotificationGroup[] = [];
-
-    const todayItems = this.notifications.filter(n => new Date(n.createdAt) >= today);
-    const yesterdayItems = this.notifications.filter(n => {
-      const d = new Date(n.createdAt);
-      return d >= yesterday && d < today;
-    });
-    const olderItems = this.notifications.filter(n => {
-      const d = new Date(n.createdAt);
-      return d >= weekAgo && d < yesterday;
-    });
-
-    if (todayItems.length > 0) groups.push({ label: 'Hôm nay', items: todayItems });
-    if (yesterdayItems.length > 0) groups.push({ label: 'Hôm qua', items: yesterdayItems });
-    if (olderItems.length > 0) groups.push({ label: 'Tuần trước', items: olderItems });
-
-    return groups;
-  }
-
-  async getUnreadCount(): Promise<number> {
-    return this.notifications.filter(n => !n.read).length;
-  }
-
-  async markAsRead(id: string): Promise<void> {
-    const notification = this.notifications.find(n => n.id === id);
-    if (notification) {
-      notification.read = true;
+  async getNotifications(params?: { page?: number; limit?: number }): Promise<{ data: NotificationItem[] }> {
+    if (API_CONFIG.USE_MOCK) {
+      return { data: MOCK_NOTIFICATIONS };
     }
+
+    // Real API: GET /api/v1/notifications — wrapped: { statusCode, data: [...notifications], message }
+    const response = await api.get(ENDPOINTS.NOTIFICATIONS.LIST);
+    const notifications = (response.data as any).data || [];
+    
+    // Map backend Notification to frontend NotificationItem
+    return {
+      data: notifications.map((n: any) => ({
+        id: String(n.id),
+        type: n.type || 'SYSTEM',
+        title: n.title,
+        body: n.message || n.body,
+        read: n.read,
+        createdAt: n.createdAt,
+        data: n.data || {},
+        icon: '',
+      })),
+    };
+  }
+
+  async markAsRead(notificationId: string): Promise<void> {
+    if (API_CONFIG.USE_MOCK) {
+      const notif = MOCK_NOTIFICATIONS.find(n => n.id === notificationId);
+      if (notif) notif.read = true;
+      return;
+    }
+    // Real API: POST /api/v1/notifications/{id}/read
+    await api.post(ENDPOINTS.NOTIFICATIONS.MARK_READ(parseInt(notificationId)));
   }
 
   async markAllAsRead(): Promise<void> {
-    this.notifications.forEach(n => { n.read = true; });
+    if (API_CONFIG.USE_MOCK) {
+      MOCK_NOTIFICATIONS.forEach(n => { n.read = true; });
+      return;
+    }
+    // Real API: POST /api/v1/notifications/read-all
+    await api.post(ENDPOINTS.NOTIFICATIONS.MARK_ALL_READ);
   }
 
-  async deleteNotification(id: string): Promise<void> {
-    this.notifications = this.notifications.filter(n => n.id !== id);
+  async getUnreadCount(): Promise<number> {
+    if (API_CONFIG.USE_MOCK) {
+      return MOCK_NOTIFICATIONS.filter(n => !n.read).length;
+    }
+    // Real API: GET /api/v1/notifications/unread — returns { data: <number> }
+    const response = await api.get(ENDPOINTS.NOTIFICATIONS.COUNT_UNREAD);
+    return (response.data as any).data || 0;
   }
 }
 

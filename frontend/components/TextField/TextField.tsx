@@ -68,23 +68,24 @@ const TextField: React.FC<TextFieldProps> = ({
     inputContainer: {
       flexDirection: 'row',
       alignItems: multiline ? 'flex-start' : 'center',
-      borderWidth: 1,
-      borderColor: error ? COLORS.error : (isFocused ? COLORS.primary : COLORS.border),
+      backgroundColor: '#F3F4F6', // Xám sáng để dễ nhìn thấy khung nhập liệu
+      borderWidth: 0, // Không dùng viền
+      borderColor: 'transparent',
       borderRadius: BORDER_RADIUS.md,
       paddingHorizontal: SPACING.md,
       paddingVertical: multiline ? SPACING.md : 0,
-      backgroundColor: editable ? COLORS.input : COLORS.gray[50],
-      minHeight: multiline ? 100 : 52,
+      minHeight: multiline ? 80 : 46,
     },
     input: {
       flex: 1,
       ...TYPOGRAPHY.body1,
       color: COLORS.text.primary,
-      paddingVertical: SPACING.md,
-      fontSize: 16,
-    },
+      paddingVertical: SPACING.sm,
+      fontSize: 14,
+      outlineStyle: 'none', // Tắt viền đen mặc định của trình duyệt (trên Web)
+    } as any,
     icon: {
-      marginRight: SPACING.md,
+      marginRight: SPACING.sm,
     },
     errorText: {
       ...TYPOGRAPHY.caption,

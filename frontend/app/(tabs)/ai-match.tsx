@@ -3,9 +3,11 @@ import { JobCard, LoadingSpinner, MatchScore, SkillTag } from '@components/index
 import { COLORS, SPACING, TYPOGRAPHY } from '@constants/theme';
 import { recommendationService } from '@services/recommendationService';
 import { MOCK_CURRENT_USER } from '@services/mockData';
+import { useAuth } from '@hooks/index';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 interface MatchResult {
   job: any;
@@ -17,12 +19,17 @@ interface MatchResult {
 
 export default function AIMatchTab() {
   const router = useRouter();
+  const { state } = useAuth();
   const [results, setResults] = useState<MatchResult[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadRecommendations();
-  }, []);
+    if (state?.isAuthenticated) {
+      loadRecommendations();
+    } else {
+      setLoading(false);
+    }
+  }, [state?.isAuthenticated]);
 
   const loadRecommendations = async () => {
     try {
@@ -37,6 +44,24 @@ export default function AIMatchTab() {
 
   if (loading) {
     return <LoadingSpinner fullScreen message="AI đang phân tích..." />;
+  }
+
+  if (!state?.isAuthenticated) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <Ionicons name="sparkles-outline" size={80} color={COLORS.gray[300]} />
+        <Text style={{ fontSize: 18, fontWeight: '700', marginTop: 16, color: COLORS.text.primary }}>Tính năng dành cho thành viên</Text>
+        <Text style={{ fontSize: 13, color: COLORS.text.secondary, textAlign: 'center', marginTop: 8, marginBottom: 24 }}>
+          Bạn cần đăng nhập để AI có thể phân tích mức độ phù hợp công việc dựa trên hồ sơ của bạn.
+        </Text>
+        <TouchableOpacity 
+          style={{ backgroundColor: COLORS.primary, paddingHorizontal: 32, paddingVertical: 12, borderRadius: 24 }}
+          onPress={() => router.push('/login')}
+        >
+          <Text style={{ color: COLORS.white, fontWeight: '700' }}>Đăng nhập ngay</Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
   return (

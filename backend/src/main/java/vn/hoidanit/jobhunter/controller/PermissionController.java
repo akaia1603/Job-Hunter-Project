@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.turkraft.springfilter.boot.Filter;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import vn.hoidanit.jobhunter.domain.Permission;
 import vn.hoidanit.jobhunter.domain.response.ResultPaginationDTO;
@@ -20,8 +23,12 @@ import vn.hoidanit.jobhunter.service.PermissionService;
 import vn.hoidanit.jobhunter.util.annotation.ApiMessage;
 import vn.hoidanit.jobhunter.util.error.IdInvalidException;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/v1")
+@Tag(name = "Permission", description = "API Quản lý Quyền hạn (Chi tiết từng API)")
+@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
 public class PermissionController {
 
     private final PermissionService permissionService;
@@ -32,6 +39,7 @@ public class PermissionController {
 
     @PostMapping("/permissions")
     @ApiMessage("Create a permission")
+    @Operation(summary = "Tạo mới quyền hạn", description = "Định nghĩa một quyền truy cập API mới (Ví dụ: GET /api/v1/users)")
     public ResponseEntity<Permission> create(@Valid @RequestBody Permission p) throws IdInvalidException {
         // check exist
         if (this.permissionService.isPermissionExist(p)) {
@@ -44,6 +52,7 @@ public class PermissionController {
 
     @PutMapping("/permissions")
     @ApiMessage("Update a permission")
+    @Operation(summary = "Cập nhật quyền hạn", description = "Sửa đổi đường dẫn API hoặc mô tả của quyền hạn")
     public ResponseEntity<Permission> update(@Valid @RequestBody Permission p) throws IdInvalidException {
         // check exist by id
         if (this.permissionService.fetchById(p.getId()) == null) {
@@ -64,6 +73,7 @@ public class PermissionController {
 
     @DeleteMapping("/permissions/{id}")
     @ApiMessage("delete a permission")
+    @Operation(summary = "Xóa quyền hạn", description = "Xóa vĩnh viễn một quyền hạn khỏi hệ thống")
     public ResponseEntity<Void> delete(@PathVariable("id") long id) throws IdInvalidException {
         // check exist by id
         if (this.permissionService.fetchById(id) == null) {
@@ -75,6 +85,7 @@ public class PermissionController {
 
     @GetMapping("/permissions")
     @ApiMessage("Fetch permissions")
+    @Operation(summary = "Lấy danh sách quyền hạn", description = "Lấy danh sách tất cả các quyền hạn đã định nghĩa")
     public ResponseEntity<ResultPaginationDTO> getPermissions(
             @Filter Specification<Permission> spec, Pageable pageable) {
 

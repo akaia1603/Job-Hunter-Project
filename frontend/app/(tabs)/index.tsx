@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { jobService } from '@services/jobService';
 import { LoadingSpinner, JobCard, Banner } from '@components/index';
-import { COLORS, SPACING, TYPOGRAPHY, SHADOW, BORDER_RADIUS } from '@constants/theme';
+import { COLORS, SHADOW } from '@constants/theme';
 
 export default function HomeTab() {
   const router = useRouter();
@@ -44,14 +44,14 @@ export default function HomeTab() {
   if (loading) return <LoadingSpinner fullScreen message="Đang tải..." />;
 
   const categories = [
-    { title: 'Việc làm', img: require('../../assets/images/ViecLam.jpg') },
-    { title: 'TopCV Pro', img: require('../../assets/images/TopCVpro.jpg') },
-    { title: 'Tạo CV', img: require('../../assets/images/Tạo CV.jpg') },
-    { title: 'Công cụ', img: require('../../assets/images/Công cụ.jpg') },
-    { title: 'Blog', img: require('../../assets/images/Blog.jpg') },
+    { title: 'Việc làm', img: require('../../assets/images/ViecLam.jpg'), route: '/(tabs)' },
+    { title: 'TopCV Pro', img: require('../../assets/images/TopCVpro.jpg'), route: '/premium' },
+    { title: 'Tạo CV', img: require('../../assets/images/Tạo CV.jpg'), route: '/cv-builder' },
+    { title: 'Công cụ', img: require('../../assets/images/Công cụ.jpg'), route: '/account-settings' },
+    { title: 'Blog', img: require('../../assets/images/Blog.jpg'), route: null },
   ];
 
-  const bannerImage = require('../../assets/images/Banner trên cùng.jpg');
+  const bannerImage = require('../../assets/images/Banner trên cùng mới.jpg');
 
   return (
     <View style={styles.container}>
@@ -60,39 +60,39 @@ export default function HomeTab() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[COLORS.white]} />}
       >
-        {/* Banner Image */}
-        <Image 
-          source={bannerImage}
-          style={styles.bannerImage}
-          resizeMode="cover"
-        />
-
-        {/* Green Header with Avatar and Search */}
-        <View style={styles.headerBanner}>
-          <View style={styles.headerTop}>
-            {/* Avatar */}
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>TJ</Text>
+        {/* Banner Wrapper - Full Cover with Rounded Corners */}
+        <View style={styles.bannerWrapper}>
+          <Image 
+            source={bannerImage}
+            style={styles.bannerImage}
+            resizeMode="cover"
+          />
+          
+          {/* Content Overlay */}
+          <View style={styles.headerOverlay}>
+            <View style={styles.headerTop}>
+              <View style={styles.headerLeftContainer}>
+                {/* Space for Logo */}
+              </View>
+              <View style={styles.headerRightContainer}>
+                <TouchableOpacity style={styles.avatar}>
+                  <Text style={styles.avatarText}>TJ</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.notificationBtn} onPress={() => router.push('/(tabs)/notifications')}>
+                  <Ionicons name="notifications-outline" size={18} color={COLORS.white} />
+                </TouchableOpacity>
               </View>
             </View>
-            
-            {/* Status Icons */}
-            <View style={styles.statusIcons}>
-              <Ionicons name="cellular" size={16} color={COLORS.white} style={{ marginRight: SPACING.xs }} />
-              <Ionicons name="wifi" size={16} color={COLORS.white} style={{ marginRight: SPACING.xs }} />
-              <Ionicons name="battery-full" size={16} color={COLORS.white} />
-            </View>
-          </View>
 
-          {/* Search Box */}
-          <View style={styles.searchContainer}>
-            <Ionicons name="search-outline" size={18} color={COLORS.primary} style={{ marginRight: SPACING.md }} />
-            <TextInput
-              style={styles.searchInputField}
-              placeholder="thực tập sinh"
-              placeholderTextColor={COLORS.text.light}
-            />
+            {/* Search Bar nested inside Banner */}
+            <View style={styles.searchContainer}>
+              <Ionicons name="search-outline" size={16} color={COLORS.text.light} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInputField}
+                placeholder="Tìm kiếm việc làm, công ty..."
+                placeholderTextColor={COLORS.text.light}
+              />
+            </View>
           </View>
         </View>
 
@@ -103,7 +103,7 @@ export default function HomeTab() {
           contentContainerStyle={styles.navIconsRow}
         >
           {categories.map((cat, idx) => (
-            <TouchableOpacity key={idx} style={styles.navItem} activeOpacity={0.7}>
+            <TouchableOpacity key={idx} style={styles.navItem} activeOpacity={0.7} onPress={() => cat.route && router.push(cat.route as any)}>
               <View style={styles.navIconBox}>
                 <Image source={cat.img} style={styles.navImage} resizeMode="cover" />
               </View>
@@ -116,7 +116,7 @@ export default function HomeTab() {
         <View style={styles.sectionWrap}>
           <View style={styles.sectionHeader}>
             <View style={styles.headerLeft}>
-              <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+              <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
               <Text style={styles.sectionTitle}>Gợi ý việc làm phù hợp</Text>
             </View>
             <TouchableOpacity activeOpacity={0.6}>
@@ -126,8 +126,8 @@ export default function HomeTab() {
 
           {/* Info Box */}
           <View style={styles.infoBox}>
-            <Ionicons name="information-circle" size={20} color={COLORS.info} />
-            <Text style={styles.infoText}>Vuốt trái để bỏ việc làm không phù hợp</Text>
+            <Ionicons name="information-circle" size={18} color={COLORS.primary} />
+            <Text style={styles.infoText}>Dựa trên hồ sơ và mong muốn của bạn</Text>
           </View>
 
           {/* Job Cards */}
@@ -141,57 +141,7 @@ export default function HomeTab() {
           ))}
         </View>
 
-        {/* Premium Recruitment Banner */}
-        <View style={styles.bannerCVWrap}>
-          <Banner
-            title="Tuyển dụng thêm từ công ty hàng đầu"
-            subtitle="Hơn 20.000 NTD đang tìm kiếm ứng viên. Tạo CV ngay để NTD tìm thấy bạn!"
-            buttonText="TẠO CV NGAY"
-            onButtonPress={() => router.push('/cv-builder')}
-            variant="primary"
-          />
-        </View>
-
-        {/* Latest Jobs Section */}
-        <View style={styles.sectionWrap}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Việc làm mới nhất</Text>
-            <TouchableOpacity activeOpacity={0.6}>
-              <Text style={styles.seeAll}>Xem tất cả</Text>
-            </TouchableOpacity>
-          </View>
-
-          {latestJobs.slice(5, 10).map(job => (
-            <JobCard 
-              key={job.id} 
-              job={job} 
-              onPress={() => router.push({ pathname: '/detail', params: { jobId: job.id } })}
-            />
-          ))}
-        </View>
-
-        {/* Featured Companies */}
-        <View style={styles.sectionWrap}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Công ty tiêu biểu</Text>
-            <TouchableOpacity activeOpacity={0.6}>
-              <Text style={styles.seeAll}>Tất cả</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.companyScroll}>
-            {latestJobs.slice(0, 4).map(job => (
-              <TouchableOpacity key={`company-${job.id}`} style={styles.companyMiniCard} activeOpacity={0.8}>
-                <View style={styles.companyMiniLogo}>
-                  <Text style={styles.companyLetter}>{job.company.name.charAt(0)}</Text>
-                </View>
-                <Text style={styles.companyMiniName} numberOfLines={1}>{job.company.name}</Text>
-                <Text style={styles.companyMiniJobs}>{Math.floor(Math.random() * 10) + 1} việc làm</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        <View style={{ height: SPACING.xxxl }} />
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </View>
   );
@@ -202,168 +152,151 @@ const styles = StyleSheet.create({
     flex: 1, 
     backgroundColor: COLORS.background.secondary 
   },
+  bannerWrapper: {
+    height: 100, // Chiều cao tối ưu để ảnh phủ đẹp
+    position: 'relative',
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderRadius: 16,
+    overflow: 'hidden', // Quan trọng: để ảnh không tràn ra ngoài góc bo
+    backgroundColor: COLORS.primary,
+    ...SHADOW.sm,
+  },
   bannerImage: {
     width: '100%',
-    height: 120,
+    height: '100%',
+    position: 'absolute',
   },
-  headerBanner: {
-    backgroundColor: COLORS.primary,
-    paddingTop: Platform.OS === 'ios' ? 10 : 8,
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.lg,
+  headerOverlay: {
+    flex: 1,
+    padding: 12,
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0,0,0,0.05)', // Overlay cực nhẹ để ảnh thật nhất
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.lg,
   },
-  avatarContainer: {
+  headerLeftContainer: {
     flex: 1,
   },
+  headerRightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: COLORS.white,
   },
   avatarText: {
     color: COLORS.white,
-    fontSize: 14,
+    fontSize: 10,
     fontWeight: '700',
   },
-  statusIcons: {
-    flexDirection: 'row',
+  notificationBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.white,
-    height: 44,
-    borderRadius: BORDER_RADIUS.md,
-    paddingHorizontal: SPACING.lg,
+    height: 36,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    ...SHADOW.sm,
+  },
+  searchIcon: {
+    marginRight: 6,
   },
   searchInputField: { 
     flex: 1, 
-    ...TYPOGRAPHY.body2,
+    fontSize: 12,
     color: COLORS.text.primary,
   },
   navIconsRow: { 
-    paddingHorizontal: SPACING.xxxl, 
-    paddingVertical: SPACING.xl,
-    gap: SPACING.xl,
-    backgroundColor: COLORS.white,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 16,
+    backgroundColor: COLORS.background.secondary,
   },
   navItem: { 
     alignItems: 'center', 
-    width: 70 
+    width: 60 
   },
   navIconBox: { 
-    width: 60, 
-    height: 60, 
-    borderRadius: 30, 
+    width: 42, 
+    height: 42, 
+    borderRadius: 10, 
     backgroundColor: COLORS.white,
-    ...SHADOW.sm,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: 6,
     overflow: 'hidden',
+    ...SHADOW.sm,
   },
   navImage: { 
     width: '100%', 
     height: '100%' 
   },
   navText: { 
-    ...TYPOGRAPHY.captionBold,
-    color: COLORS.text.secondary, 
-    textAlign: 'center',
     fontSize: 11,
+    color: COLORS.text.primary, 
+    textAlign: 'center',
+    fontWeight: '500',
   },
   sectionWrap: { 
-    paddingHorizontal: SPACING.xxxl, 
-    marginBottom: SPACING.xxxl 
+    paddingHorizontal: 16,
+    marginBottom: 16 
   },
   sectionHeader: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center', 
-    marginBottom: SPACING.xl 
+    marginBottom: 10 
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
+    gap: 6,
   },
   sectionTitle: { 
-    ...TYPOGRAPHY.h4, 
+    fontSize: 14,
     color: COLORS.text.primary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   seeAll: { 
-    ...TYPOGRAPHY.body2,
+    fontSize: 12,
     color: COLORS.primary, 
     fontWeight: '600',
   },
   infoBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.info + '10',
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.info,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.sm,
-    marginBottom: SPACING.lg,
-    gap: SPACING.md,
+    backgroundColor: COLORS.primaryLight,
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 8,
   },
   infoText: {
-    ...TYPOGRAPHY.body2,
-    color: COLORS.info,
+    fontSize: 11,
+    color: COLORS.primary,
     flex: 1,
   },
-  bannerCVWrap: { 
-    paddingHorizontal: SPACING.xxxl, 
-    marginBottom: SPACING['7xl'],
-  },
-  companyScroll: {
-    gap: SPACING.md,
-  },
-  companyMiniCard: {
-    width: 140,
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
-    alignItems: 'center',
-    ...SHADOW.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  companyMiniLogo: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.background.secondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
-  companyLetter: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  companyMiniName: {
-    ...TYPOGRAPHY.captionBold,
-    color: COLORS.text.primary,
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  companyMiniJobs: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.text.light,
+  bottomSpacer: {
+    height: 40,
   },
 });

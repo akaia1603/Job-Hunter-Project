@@ -1,30 +1,20 @@
-// Colors theme — updated with premium and gradient colors
+// Standardized Colors for Refactored UI
 export const COLORS = {
-  // Primary colors - Rich TopCV Green (matching the design)
-  primary: '#1AB14F',           // Updated to richer green
-  primaryLight: '#D4F0E0',      // Updated light green
+  // Primary color - Standard TopCV Green
+  primary: '#00B14F',
+  primaryLight: '#E6F7ED',
   primaryDark: '#008A3C',
 
-  // Secondary colors
-  secondary: '#1A73E8',
-  secondaryLight: '#E8F0FE',
-  secondaryDark: '#1557B0',
-
-  // Premium colors
-  gold: '#F59E0B',
-  goldLight: '#FEF3C7',
-  goldDark: '#D97706',
-
-  // Neutrals - Moving away from pure black, using warm/cool grays
+  // Neutrals
   white: '#FFFFFF',
-  black: '#1A1A1A',             // Softer black
+  black: '#222222',
   gray: {
-    50: '#FBFBFC',
+    50: '#F8F8F8',
     100: '#F3F4F6',
     200: '#E5E7EB',
     300: '#D1D5DB',
     400: '#9CA3AF',
-    500: '#6B7280',
+    500: '#888888', // Text secondary
     600: '#4B5563',
     700: '#374151',
     800: '#1F2937',
@@ -32,39 +22,33 @@ export const COLORS = {
   },
 
   // Semantic
-  success: '#10B981',
+  success: '#00B14F',
   warning: '#F59E0B',
   error: '#EF4444',
   info: '#3B82F6',
 
-  // Text colors - Optimized for readability and elegance
+  // Text colors
   text: {
-    primary: '#1A1A1A',         // Refined black
-    secondary: '#4B5563',       // Gray 600
-    light: '#9CA3AF',           // Gray 400
+    primary: '#222222',
+    secondary: '#888888',
+    light: '#AAAAAA',
     white: '#FFFFFF',
-    disabled: '#D1D5DB',
-    link: '#1AB14F',            // Updated to match primary
+    link: '#00B14F',
   },
 
   // Background colors
   background: {
     primary: '#FFFFFF',
-    secondary: '#FBFBFC',       // Subtle off-white
-    tertiary: '#F3F4F6',
-    dark: '#111827',
+    secondary: '#F8F8F8',
   },
 
-  // UI Elements
-  border: '#EEEEEE',            // Very subtle borders
-  divider: '#F3F4F6',
-  input: '#FBFBFC',
-  
-  // Shadows
-  shadow: 'rgba(0, 0, 0, 0.04)',
-  shadowMedium: 'rgba(0, 0, 0, 0.08)',
-};
+  // Match score colors
+  matchHigh: '#00B14F',
+  matchMedium: '#F59E0B',
+  matchLow: '#EF4444',
 
-export type ColorVariant = keyof typeof COLORS;
+  border: '#EEEEEE',
+  shadow: 'rgba(0, 0, 0, 0.05)',
+};
 
 export default COLORS;

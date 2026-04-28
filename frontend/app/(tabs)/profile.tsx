@@ -1,386 +1,561 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View, StatusBar, Platform } from 'react-native';
-import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOW } from '@constants/theme';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+  Image,
+  RefreshControl,
+} from 'react-native';
+import { BORDER_RADIUS, COLORS, SHADOW, SPACING, TYPOGRAPHY } from '@constants/theme';
+import { useAuthStore } from '@store/authStore';
+import api from '@services/api';
+import { ENDPOINTS } from '@constants/endpoints';
 
 export default function ProfileTab() {
+  const router = useRouter();
+  const { user, isAuthenticated, logout, updateUser, refreshUserFromServer } = useAuthStore();
+
+  const [refreshing, setRefreshing] = useState(false);
   const [isLookingForJob, setIsLookingForJob] = useState(false);
-  const [allowSearch, setAllowSearch] = useState(true);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+
+  // Hàm làm mới thông tin User từ server
+  const fetchLatestUserData = useCallback(async () => {
+    try {
+      await refreshUserFromServer();
+    } catch (error) {
+      console.error('Failed to sync user data:', error);
+    } finally {
+      setRefreshing(false);
+      setCheckingStatus(false);
+    }
+  }, [refreshUserFromServer]);
+
+  // Kiểm tra trạng thái công ty nếu là candidate
+  const checkCompanyStatus = async () => {
+    try {
+      setCheckingStatus(true);
+      const res = await api.get('/companies');
+      const allCompanies = (res.data as any).data.result;
+      const myCompany = allCompanies.find((c: any) => c.createdBy === user?.email);
+      if (myCompany && !myCompany.active) {
+        return 'PENDING';
+      }
+    } catch (e) {
+      console.log('No pending company found');
+    } finally {
+      setCheckingStatus(false);
+    }
+    return null;
+  };
+
+  const [companyStatus, setCompanyStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchLatestUserData();
+    checkCompanyStatus().then(setCompanyStatus);
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchLatestUserData();
+    checkCompanyStatus().then(setCompanyStatus);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/'); 
+  };
+
+  const isAdmin = user?.role?.name === 'SUPER_ADMIN';
+  const isHR = user?.role?.name === 'HR';
+  const isCandidate = !isAdmin && !isHR;
+
+  const bannerImage = require('../../assets/images/Banner trên cùng mục cá nhân.jpg');
+
+  const MenuItem = ({ icon, label, onPress, rightElement, description, iconColor = COLORS.primary, bgColor = '#F0FDF4' }: any) => (
+    <TouchableOpacity 
+      style={styles.menuItem} 
+      onPress={onPress} 
+      activeOpacity={0.7}
+      disabled={!onPress}
+    >
+      <View style={styles.menuItemTop}>
+        <View style={[styles.menuIconWrap, { backgroundColor: bgColor }]}>
+          <Ionicons name={icon} size={20} color={iconColor} />
+        </View>
+        <View style={styles.menuTextContent}>
+          <Text style={styles.menuLabel}>{label}</Text>
+        </View>
+        {rightElement ? rightElement : (
+          <Ionicons name="chevron-forward" size={18} color={COLORS.gray[400]} />
+        )}
+      </View>
+      {description && (
+        <Text style={styles.menuDescription}>{description}</Text>
+      )}
+    </TouchableOpacity>
+  );
+
+  if (!isAuthenticated) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <Ionicons name="person-circle-outline" size={80} color={COLORS.gray[300]} />
+        <Text style={{ fontSize: 18, fontWeight: '700', marginTop: 16, color: COLORS.text.primary }}>Chưa đăng nhập</Text>
+        <Text style={{ fontSize: 13, color: COLORS.text.secondary, textAlign: 'center', marginTop: 8, marginBottom: 24 }}>
+          Bạn cần đăng nhập để xem thông tin cá nhân và quản lý hồ sơ.
+        </Text>
+        <TouchableOpacity 
+          style={{ backgroundColor: COLORS.primary, paddingHorizontal: 32, paddingVertical: 12, borderRadius: 24 }}
+          onPress={() => router.push('/login')}
+        >
+          <Text style={{ color: COLORS.white, fontWeight: '700' }}>Đăng nhập ngay</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primaryDark} />
       
-      {/* Dynamic Header with Color */}
-      <View style={styles.topBg}>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Hồ sơ cá nhân</Text>
-          <TouchableOpacity style={styles.settingsBtn}>
-            <Ionicons name="settings-outline" size={24} color={COLORS.white} />
-          </TouchableOpacity>
+      <View style={styles.headerContainer}>
+        <View style={styles.topBannerBg}>
+          <Image source={bannerImage} style={styles.bannerImg} resizeMode="cover" />
+          <View style={styles.headerTopIcons}>
+            <TouchableOpacity 
+              style={styles.headerIconButton}
+              onPress={() => router.push('/account-settings')}
+            >
+              <Ionicons name="settings-outline" size={24} color={COLORS.white} />
+            </TouchableOpacity>
+          </View>
+        </View>
+        <View style={styles.profileCard}>
+          <View style={styles.profileInfoRow}>
+            <View style={styles.avatarWrap}>
+              <View style={styles.avatarCircle}>
+                <Ionicons name="person" size={40} color={COLORS.gray[300]} />
+              </View>
+            </View>
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{user?.name || 'Người dùng'}</Text>
+              <Text style={styles.userId}>{user?.email}</Text>
+              <View style={styles.roleTag}>
+                <Text style={styles.roleTagText}>
+                   {isAdmin ? 'Quản trị viên' : isHR ? 'Nhà tuyển dụng' : 'Ứng viên'}
+                </Text>
+              </View>
+            </View>
+          </View>
         </View>
       </View>
 
       <ScrollView 
         showsVerticalScrollIndicator={false} 
         contentContainerStyle={styles.scrollContent}
-        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
+        }
       >
-        {/* Profile Card Floating */}
-        <View style={styles.profileCard}>
-          <View style={styles.avatarRow}>
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatarPlaceholder}>
-                <Ionicons name="person" size={40} color={COLORS.text.light} />
-              </View>
-              <TouchableOpacity style={styles.editAvatarBtn} activeOpacity={0.7}>
-                <Ionicons name="camera" size={14} color={COLORS.white} />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.userMeta}>
-              <Text style={styles.userName}>Minh Quân Bùi</Text>
-              <Text style={styles.userEmail}>minhquan.bui@example.com</Text>
-              <View style={styles.idBadge}>
-                <Text style={styles.idText}>ID: 8209039</Text>
+        {/* Pending Approval Banner */}
+        {companyStatus === 'PENDING' && (
+          <View style={[styles.section, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', padding: 10 }}>
+              <Ionicons name="time-outline" size={20} color="#B45309" />
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={{ fontWeight: '700', color: '#92400E', fontSize: 13 }}>Đang chờ phê duyệt</Text>
+                <Text style={{ fontSize: 11, color: '#B45309' }}>Hệ thống đang xem xét yêu cầu đăng ký doanh nghiệp của bạn.</Text>
               </View>
             </View>
           </View>
-          
-          <TouchableOpacity style={styles.premiumBanner} activeOpacity={0.9}>
-            <View style={styles.premiumInfo}>
-              <View style={styles.goldBadge}>
-                <Ionicons name="star" size={10} color={COLORS.goldDark} />
-                <Text style={styles.goldBadgeText}>PREMIUM</Text>
-              </View>
-              <Text style={styles.premiumTitle}>Nâng cấp để bứt phá sự nghiệp</Text>
+        )}
+
+        {/* Admin Section */}
+        {isAdmin && (
+          <>
+            <View style={styles.sectionTitleWrap}>
+              <Text style={styles.sectionTitle}>Quản trị hệ thống</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={COLORS.goldDark} />
-          </TouchableOpacity>
+            <View style={styles.sectionGroup}>
+              <MenuItem 
+                icon="shield-checkmark" 
+                label="Duyệt Doanh nghiệp" 
+                onPress={() => router.push('/admin/dashboard')}
+                iconColor={COLORS.primary}
+                bgColor="#F0FDF4"
+              />
+              <View style={styles.divider} />
+              <MenuItem 
+                icon="people" 
+                label="Quản lý Người dùng" 
+                iconColor={COLORS.primary}
+                bgColor="#F0FDF4"
+              />
+            </View>
+          </>
+        )}
+
+        {/* HR Section */}
+        {isHR && (
+          <>
+            <View style={styles.sectionTitleWrap}>
+              <Text style={styles.sectionTitle}>Quản lý tuyển dụng</Text>
+            </View>
+            <View style={styles.sectionGroup}>
+              <MenuItem 
+                icon="add-circle" 
+                label="Đăng tin tuyển dụng mới" 
+                iconColor={COLORS.primary}
+                bgColor="#F0FDF4"
+                onPress={() => {}}
+              />
+              <View style={styles.divider} />
+              <MenuItem 
+                icon="list" 
+                label="Việc làm đã đăng" 
+                iconColor={COLORS.primary}
+                bgColor="#F0FDF4"
+                onPress={() => {}}
+              />
+              <View style={styles.divider} />
+              <MenuItem 
+                icon="documents" 
+                label="Hồ sơ ứng tuyển" 
+                iconColor={COLORS.primary}
+                bgColor="#F0FDF4"
+                onPress={() => router.push('/(tabs)/applications')}
+              />
+            </View>
+          </>
+        )}
+
+        {/* Candidate / Partner Section */}
+        {isCandidate && !companyStatus && (
+          <>
+            <View style={styles.sectionTitleWrap}>
+              <Text style={styles.sectionTitle}>Dành cho đối tác</Text>
+            </View>
+            <View style={styles.sectionGroup}>
+              <MenuItem 
+                icon="business" 
+                label="Đăng ký doanh nghiệp" 
+                description="Trở thành đối tác tuyển dụng của Job Hunter"
+                onPress={() => router.push('/register-company')}
+                iconColor={COLORS.primary}
+                bgColor="#F0FDF4"
+              />
+            </View>
+          </>
+        )}
+
+        <View style={styles.sectionTitleWrap}>
+          <Text style={styles.sectionTitle}>Hồ sơ cá nhân</Text>
+        </View>
+        <View style={styles.sectionGroup}>
+          <MenuItem 
+            icon="heart" 
+            label="Việc làm đã lưu" 
+            onPress={() => router.push('/saved-jobs')}
+            iconColor={COLORS.primary}
+            bgColor="#F0FDF4"
+          />
+          <View style={styles.divider} />
+          <MenuItem 
+            icon="briefcase" 
+            label="Đơn ứng tuyển của tôi" 
+            onPress={() => router.push('/(tabs)/applications')}
+            iconColor={COLORS.primary}
+            bgColor="#F0FDF4"
+          />
         </View>
 
-        {/* Quick Stats Row */}
-        <View style={styles.statsContainer}>
-          <TouchableOpacity style={styles.statBox} activeOpacity={0.7}>
-            <Text style={styles.statCount}>12</Text>
-            <Text style={styles.statName}>Ứng tuyển</Text>
-          </TouchableOpacity>
-          <View style={styles.statDivider} />
-          <TouchableOpacity style={styles.statBox} activeOpacity={0.7}>
-            <Text style={styles.statCount}>45</Text>
-            <Text style={styles.statName}>Lượt xem</Text>
-          </TouchableOpacity>
-          <View style={styles.statDivider} />
-          <TouchableOpacity style={styles.statBox} activeOpacity={0.7}>
-            <Text style={styles.statCount}>08</Text>
-            <Text style={styles.statName}>Đã lưu</Text>
-          </TouchableOpacity>
+        <View style={styles.sectionTitleWrap}>
+          <Text style={styles.sectionTitle}>Trạng thái tìm việc</Text>
         </View>
-
-        {/* Action Sections */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>CÀI ĐẶT TÌM VIỆC</Text>
-          <View style={styles.menuGroup}>
-            <View style={styles.settingRow}>
-              <View style={styles.settingIconWrap}>
-                <Ionicons name="search" size={20} color={COLORS.primary} />
-              </View>
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabelText}>Đang tìm việc</Text>
-                <Text style={styles.settingSub}>Cho phép NTD thấy hồ sơ của bạn</Text>
-              </View>
+          <MenuItem 
+            icon="stats-chart" 
+            label="Trạng thái tìm việc" 
+            description="Bật tìm việc ngay để làm nổi bật hồ sơ."
+            iconColor={COLORS.primary}
+            bgColor="#F0FDF4"
+            rightElement={
               <Switch
                 value={isLookingForJob}
                 onValueChange={setIsLookingForJob}
-                trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
-                thumbColor={isLookingForJob ? COLORS.primary : COLORS.gray[200]}
+                trackColor={{ false: COLORS.gray[200], true: COLORS.success }}
+                thumbColor={Platform.OS === 'ios' ? undefined : COLORS.white}
               />
-            </View>
-            <View style={styles.dividerLine} />
-            <View style={styles.settingRow}>
-              <View style={styles.settingIconWrap}>
-                <Ionicons name="eye-outline" size={20} color={COLORS.primary} />
-              </View>
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabelText}>Cho phép tìm kiếm</Text>
-                <Text style={styles.settingSub}>Hiển thị hồ sơ trong kết quả tìm kiếm</Text>
-              </View>
-              <Switch
-                value={allowSearch}
-                onValueChange={setAllowSearch}
-                trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
-                thumbColor={allowSearch ? COLORS.primary : COLORS.gray[200]}
-              />
-            </View>
-          </View>
+            }
+          />
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>TIỆN ÍCH HỒ SƠ</Text>
-          <View style={styles.menuGroup}>
-            {[
-              { icon: 'document-text', label: 'CV đã tạo trên TopCV', count: '2' },
-              { icon: 'cloud-upload', label: 'CV đã tải lên', count: '1' },
-              { icon: 'create', label: 'Mẫu thư giới thiệu' },
-            ].map((item, idx, arr) => (
-              <React.Fragment key={idx}>
-                <TouchableOpacity style={styles.menuRow} activeOpacity={0.6}>
-                  <View style={styles.menuIconWrap}>
-                    <Ionicons name={item.icon as any} size={20} color={COLORS.text.secondary} />
-                  </View>
-                  <Text style={styles.menuRowLabel}>{item.label}</Text>
-                  {item.count && <Text style={styles.menuCount}>{item.count}</Text>}
-                  <Ionicons name="chevron-forward" size={16} color={COLORS.text.light} />
-                </TouchableOpacity>
-                {idx < arr.length - 1 && <View style={styles.dividerLine} />}
-              </React.Fragment>
-            ))}
-          </View>
+        <View style={styles.sectionTitleWrap}>
+          <Text style={styles.sectionTitle}>CV của tôi</Text>
+        </View>
+        <View style={styles.sectionGroup}>
+          <MenuItem 
+            icon="document-text" 
+            label="CV đã tạo trên hệ thống" 
+            onPress={() => router.push('/cv-builder')}
+            iconColor={COLORS.primary}
+            bgColor="#F0FDF4"
+          />
+          <View style={styles.divider} />
+          <MenuItem 
+            icon="cloud-upload" 
+            label="CV đã tải lên" 
+            onPress={() => router.push('/upload-cv')}
+            iconColor={COLORS.primary}
+            bgColor="#F0FDF4"
+          />
         </View>
 
-        <TouchableOpacity style={styles.logoutBtn} activeOpacity={0.7}>
-          <Ionicons name="log-out-outline" size={20} color={COLORS.error} />
-          <Text style={styles.logoutText}>Đăng xuất</Text>
-        </TouchableOpacity>
+        <View style={styles.sectionTitleWrap}>
+          <Text style={styles.sectionTitle}>Cài đặt</Text>
+        </View>
+        <View style={styles.sectionGroup}>
+          <MenuItem 
+            icon="key" 
+            label="Đổi mật khẩu" 
+            onPress={() => router.push('/account-settings')}
+            iconColor={COLORS.primary}
+            bgColor="#F0FDF4"
+          />
+        </View>
 
-        <View style={{ height: 40 }} />
+        <View style={styles.sectionTitleWrap}>
+          <Text style={styles.sectionTitle}>Thông tin & Chính sách</Text>
+        </View>
+        <View style={styles.sectionGroup}>
+          <MenuItem 
+            icon="information-circle" 
+            label="Giới thiệu về TopCV" 
+            onPress={() => {}}
+            iconColor={COLORS.primary}
+            bgColor="#F0FDF4"
+          />
+          <View style={styles.divider} />
+          <MenuItem 
+            icon="shield-checkmark" 
+            label="Chính sách bảo mật" 
+            onPress={() => {}}
+            iconColor={COLORS.primary}
+            bgColor="#F0FDF4"
+          />
+          <View style={styles.divider} />
+          <MenuItem 
+            icon="document-text" 
+            label="Điều khoản sử dụng" 
+            onPress={() => {}}
+            iconColor={COLORS.primary}
+            bgColor="#F0FDF4"
+          />
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.versionText}>Phiên bản: 1.0.0</Text>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <Text style={styles.logoutText}>Đăng xuất</Text>
+            <Ionicons name="log-out-outline" size={20} color={COLORS.error || '#F44336'} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background.secondary },
-  topBg: { 
-    backgroundColor: COLORS.primary, 
-    height: 180, 
-    paddingTop: StatusBar.currentHeight || 50,
-    paddingHorizontal: SPACING.xxxl,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    ...TYPOGRAPHY.h2,
-    color: COLORS.white,
-  },
-  settingsBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 20,
-  },
-  scrollView: { flex: 1 },
-  scrollContent: { paddingHorizontal: SPACING.xxxl },
-  profileCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.xl,
-    marginTop: -60,
-    ...SHADOW.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  avatarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.xl,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginRight: SPACING.xl,
-  },
-  avatarPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  container: {
+    flex: 1,
     backgroundColor: COLORS.background.secondary,
+  },
+  headerContainer: {
+    height: 130,
+    position: 'relative',
+  },
+  topBannerBg: {
+    backgroundColor: COLORS.primaryDark,
+    height: 80,
+    overflow: 'hidden',
+  },
+  bannerImg: {
+    width: '100%',
+    height: '100%',
+    opacity: 0.9,
+  },
+  headerTopIcons: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 10 : 6,
+    right: 16,
+    flexDirection: 'row',
+  },
+  headerIconButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
   },
-  editAvatarBtn: {
+  profileCard: {
     position: 'absolute',
     bottom: 0,
-    right: 0,
-    backgroundColor: COLORS.primary,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    left: 28,
+    right: 28,
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 12,
+    ...SHADOW.md,
+    borderWidth: 0.5,
+    borderColor: '#F5F5F5',
+  },
+  profileInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarWrap: {
+    marginRight: 12,
+  },
+  avatarCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: COLORS.white,
+    borderWidth: 0.5,
+    borderColor: '#E5E7EB',
   },
-  userMeta: { flex: 1 },
+  userInfo: {
+    flex: 1,
+  },
   userName: {
-    ...TYPOGRAPHY.h3,
+    fontSize: 15,
+    fontWeight: '800',
     color: COLORS.text.primary,
-    marginBottom: 2,
   },
-  userEmail: {
-    ...TYPOGRAPHY.caption,
+  userId: {
+    fontSize: 11,
     color: COLORS.text.secondary,
-    marginBottom: 6,
-  },
-  idBadge: {
-    backgroundColor: COLORS.background.tertiary,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-  },
-  idText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: COLORS.text.light,
-  },
-  premiumBanner: {
-    backgroundColor: '#FFFBEB',
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#FEF3C7',
-  },
-  premiumInfo: { flex: 1 },
-  goldBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    gap: 4,
     marginBottom: 4,
   },
-  goldBadgeText: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: COLORS.goldDark,
-  },
-  premiumTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#92400E',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    paddingVertical: SPACING.xl,
-    marginTop: SPACING.xl,
-    marginBottom: SPACING.xxxl,
-    ...SHADOW.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  statBox: { flex: 1, alignItems: 'center' },
-  statCount: {
-    ...TYPOGRAPHY.h3,
-    color: COLORS.primary,
-    marginBottom: 2,
-  },
-  statName: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.text.secondary,
-  },
-  statDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: COLORS.divider,
-  },
-  section: { marginBottom: SPACING.xxxl },
-  sectionLabel: {
-    ...TYPOGRAPHY.label,
-    color: COLORS.text.light,
-    fontSize: 10,
-    marginBottom: SPACING.md,
-    marginLeft: 4,
-  },
-  menuGroup: {
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    ...SHADOW.sm,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.xl,
-  },
-  settingIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.lg,
-  },
-  settingText: { flex: 1 },
-  settingLabelText: {
-    ...TYPOGRAPHY.body1,
-    fontWeight: '600',
-    color: COLORS.text.primary,
-  },
-  settingSub: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.text.secondary,
-  },
-  dividerLine: {
-    height: 1,
-    backgroundColor: COLORS.divider,
-    marginHorizontal: SPACING.xl,
-  },
-  menuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.xl,
-  },
-  menuIconWrap: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.md,
-  },
-  menuRowLabel: {
-    flex: 1,
-    ...TYPOGRAPHY.body1,
-    color: COLORS.text.primary,
-  },
-  menuCount: {
-    ...TYPOGRAPHY.captionBold,
-    color: COLORS.primary,
+  roleTag: {
     backgroundColor: COLORS.primaryLight,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
-    marginRight: 8,
+    alignSelf: 'flex-start',
+  },
+  roleTagText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  scrollContent: {
+    paddingTop: 10,
+    paddingHorizontal: 28,
+  },
+  section: {
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    marginBottom: 14,
+    paddingHorizontal: 10,
+    ...SHADOW.sm,
+    borderWidth: 0.5,
+    borderColor: '#F9FAFB',
+  },
+  sectionGroup: {
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    marginBottom: 14,
+    paddingHorizontal: 10,
+    ...SHADOW.sm,
+    borderWidth: 0.5,
+    borderColor: '#F9FAFB',
+  },
+  sectionTitleWrap: {
+    marginBottom: 4,
+    paddingLeft: 4,
+    marginTop: 10,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: COLORS.text.primary,
+  },
+  menuItem: {
+    paddingVertical: 10,
+  },
+  menuItemTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  menuTextContent: {
+    flex: 1,
+  },
+  menuLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+  },
+  menuDescription: {
+    fontSize: 10,
+    color: COLORS.text.secondary,
+    marginTop: 3,
+    lineHeight: 14,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginHorizontal: 10,
+  },
+  footer: {
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 30,
+  },
+  versionText: {
+    fontSize: 11,
+    color: COLORS.text.light,
+    marginBottom: 10,
   },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: COLORS.white,
-    paddingVertical: SPACING.xl,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.error + '20',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
     gap: 8,
+    ...SHADOW.sm,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
   },
   logoutText: {
-    ...TYPOGRAPHY.button,
-    color: COLORS.error,
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.error || '#F44336',
+  },
+  bottomSpacer: {
+    height: 40,
   },
 });

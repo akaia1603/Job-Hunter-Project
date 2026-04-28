@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+
 import com.turkraft.springfilter.builder.FilterBuilder;
 import com.turkraft.springfilter.converter.FilterSpecification;
 import com.turkraft.springfilter.converter.FilterSpecificationConverter;
@@ -41,14 +42,20 @@ public class ResumeService {
     private final ResumeRepository resumeRepository;
     private final UserRepository userRepository;
     private final JobRepository jobRepository;
+    private final NotificationService notificationService;
+    private final EmailService emailService;
 
     public ResumeService(
             ResumeRepository resumeRepository,
             UserRepository userRepository,
-            JobRepository jobRepository) {
+            JobRepository jobRepository,
+            NotificationService notificationService,
+            EmailService emailService) {
         this.resumeRepository = resumeRepository;
         this.userRepository = userRepository;
         this.jobRepository = jobRepository;
+        this.notificationService = notificationService;
+        this.emailService = emailService;
     }
 
     public Optional<Resume> fetchById(long id) {
@@ -86,6 +93,23 @@ public class ResumeService {
 
     public ResUpdateResumeDTO update(Resume resume) {
         resume = this.resumeRepository.save(resume);
+
+        // Notify user about status update
+        if (resume.getUser() != null) {
+            this.notificationService.createNotification(
+                resume.getUser(),
+                "Trạng thái hồ sơ của bạn đã được cập nhật thành: " + resume.getStatus(),
+                "STATUS_UPDATE"
+            );
+            
+            // Email notification
+            if (resume.getUser().getEmail() != null) {
+                String subject = "Cập nhật trạng thái ứng tuyển";
+                String content = "Trạng thái hồ sơ của bạn đã được cập nhật thành: " + resume.getStatus();
+                this.emailService.sendEmailSync(resume.getUser().getEmail(), subject, content, false, false);
+            }
+        }
+
         ResUpdateResumeDTO res = new ResUpdateResumeDTO();
         res.setUpdatedAt(resume.getUpdatedAt());
         res.setUpdatedBy(resume.getUpdatedBy());
@@ -109,42 +133,55 @@ public class ResumeService {
 
         if (resume.getJob() != null) {
             res.setCompanyName(resume.getJob().getCompany().getName());
+            res.setJob(new ResFetchResumeDTO.JobResume(resume.getJob().getId(), resume.getJob().getName()));
         }
 
-        res.setUser(new ResFetchResumeDTO.UserResume(resume.getUser().getId(), resume.getUser().getName()));
-        res.setJob(new ResFetchResumeDTO.JobResume(resume.getJob().getId(), resume.getJob().getName()));
+        if (resume.getUser() != null) {
+            res.setUser(new ResFetchResumeDTO.UserResume(resume.getUser().getId(), resume.getUser().getName()));
+        }
 
         return res;
     }
 
     public ResultPaginationDTO fetchAllResume(Specification<Resume> spec, Pageable pageable) {
+        // Phân quyền cho HR: Chỉ thấy resume của công ty mình
+        String email = SecurityUtil.getCurrentUserLogin().orElse("");
+        User currentUser = this.userRepository.findByEmail(email);
+
+        if (currentUser != null && currentUser.getRole() != null && !currentUser.getRole().getName().equals("SUPER_ADMIN")) {
+            if (currentUser.getCompany() != null) {
+                // Thêm điều kiện lọc theo company id của HR
+                Specification<Resume> companySpec = (root, query, criteriaBuilder) -> 
+                    criteriaBuilder.equal(root.get("job").get("company").get("id"), currentUser.getCompany().getId());
+                spec = spec == null ? companySpec : spec.and(companySpec);
+            } else {
+                // Nếu là HR mà không có công ty, không cho thấy gì cả
+                return new ResultPaginationDTO(); 
+            }
+        }
+
         Page<Resume> pageUser = this.resumeRepository.findAll(spec, pageable);
         ResultPaginationDTO rs = new ResultPaginationDTO();
         ResultPaginationDTO.Meta mt = new ResultPaginationDTO.Meta();
 
         mt.setPage(pageable.getPageNumber() + 1);
         mt.setPageSize(pageable.getPageSize());
-
         mt.setPages(pageUser.getTotalPages());
         mt.setTotal(pageUser.getTotalElements());
 
         rs.setMeta(mt);
 
-        // remove sensitive data
         List<ResFetchResumeDTO> listResume = pageUser.getContent()
                 .stream().map(item -> this.getResume(item))
                 .collect(Collectors.toList());
 
         rs.setResult(listResume);
-
         return rs;
     }
 
     public ResultPaginationDTO fetchResumeByUser(Pageable pageable) {
-        // query builder
-        String email = SecurityUtil.getCurrentUserLogin().isPresent() == true
-                ? SecurityUtil.getCurrentUserLogin().get()
-                : "";
+        String email = SecurityUtil.getCurrentUserLogin().orElse("");
+        
         FilterNode node = filterParser.parse("email='" + email + "'");
         FilterSpecification<Resume> spec = filterSpecificationConverter.convert(node);
         Page<Resume> pageResume = this.resumeRepository.findAll(spec, pageable);
@@ -154,19 +191,16 @@ public class ResumeService {
 
         mt.setPage(pageable.getPageNumber() + 1);
         mt.setPageSize(pageable.getPageSize());
-
         mt.setPages(pageResume.getTotalPages());
         mt.setTotal(pageResume.getTotalElements());
 
         rs.setMeta(mt);
 
-        // remove sensitive data
         List<ResFetchResumeDTO> listResume = pageResume.getContent()
                 .stream().map(item -> this.getResume(item))
                 .collect(Collectors.toList());
 
         rs.setResult(listResume);
-
         return rs;
     }
 }

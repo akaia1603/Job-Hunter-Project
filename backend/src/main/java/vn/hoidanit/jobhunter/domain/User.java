@@ -47,6 +47,8 @@ public class User {
 
     private String address;
 
+    private String avatar;
+
     @Column(columnDefinition = "MEDIUMTEXT")
     private String refreshToken;
 
@@ -66,6 +68,9 @@ public class User {
     @ManyToOne
     @JoinColumn(name = "role_id")
     private Role role;
+
+    private Boolean isPremiumCandidate = false;
+    private Instant premiumCandidateExpiryDate;
 
     @PrePersist
     public void handleBeforeCreate() {

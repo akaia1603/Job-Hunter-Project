@@ -1,13 +1,35 @@
-// Custom hook para manejar autenticación
-import { AuthContext, AuthContextType } from '@context/AuthContext';
-import { useContext } from 'react';
+// Custom hook for handling authentication via Zustand
+import { useAuthStore } from '@store/authStore';
 
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
+export const useAuth = () => {
+  const { 
+    user, 
+    token, 
+    isAuthenticated, 
+    isLoading, 
+    error,
+    login,
+    signup,
+    logout,
+    updateUser,
+    restoreAuth
+  } = useAuthStore();
+
+  return {
+    state: {
+      user,
+      token,
+      isAuthenticated,
+      isLoading,
+      error
+    },
+    login,
+    signup,
+    logout,
+    updateUser,
+    isLoading,
+    restoreAuth
+  };
 };
 
 export default useAuth;
